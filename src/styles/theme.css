@@ -1,0 +1,321 @@
+:root {
+  --sidebar-width: 270px;
+  --toc-width: 260px;
+  --header-height: 88px;
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --shadow-soft: 0 10px 40px rgba(15, 23, 42, 0.25);
+  --transition-base: 0.25s ease;
+}
+
+html[data-theme='light'] {
+  --app-bg: #f6f7fb;
+  --panel-bg: #ffffff;
+  --panel-border: rgba(15, 23, 42, 0.08);
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --accent: #22c55e;
+  --code-bg: #f1f5f9;
+  --blockquote-bg: #f3f4f6;
+  --divider-color: rgba(148, 163, 184, 0.4);
+  --el-bg-color: var(--panel-bg);
+  --el-bg-color-overlay: var(--panel-bg);
+  --el-text-color-primary: var(--text-primary);
+  --el-text-color-regular: var(--text-secondary);
+}
+
+html[data-theme='dark'] {
+  --app-bg: #0f172a;
+  --panel-bg: #131b2f;
+  --panel-border: rgba(226, 232, 240, 0.08);
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5f5;
+  --accent: #60a5fa;
+  --code-bg: #1f2937;
+  --blockquote-bg: rgba(148, 163, 184, 0.08);
+  --divider-color: rgba(71, 85, 105, 0.8);
+  --el-bg-color: var(--panel-bg);
+  --el-bg-color-overlay: var(--panel-bg);
+  --el-text-color-primary: var(--text-primary);
+  --el-text-color-regular: var(--text-secondary);
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  height: 100vh;
+  flex-direction: column;
+}
+
+.layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--toc-width);
+  gap: 20px;
+  padding: 20px clamp(16px, 6vw, 48px) 32px;
+  align-items: flex-start;
+  height: calc(100vh - var(--header-height));
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+}
+
+.panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-soft);
+  transition: background var(--transition-base), border-color var(--transition-base);
+  width: 100%;
+}
+
+.sidebar-panel,
+.toc-panel {
+  position: sticky;
+  top: calc(var(--header-height) + 20px);
+  align-self: start;
+  max-height: calc(100vh - var(--header-height) - 40px);
+}
+
+.sidebar-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.sidebar-scroll,
+.content-scroll,
+.toc-panel {
+  scrollbar-width: thin;
+  scrollbar-color: var(--panel-border) transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar,
+.content-scroll::-webkit-scrollbar,
+.toc-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb,
+.content-scroll::-webkit-scrollbar-thumb,
+.toc-panel::-webkit-scrollbar-thumb {
+  background: var(--panel-border);
+  border-radius: 999px;
+}
+
+.content-panel {
+  overflow: hidden;
+}
+
+.toc-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain; /* 保证在 toc 内滚动时不影响整体页面滚动 */
+  padding-right: 6px;
+}
+
+.placeholder {
+  min-height: 50vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.markdown-body {
+  color: var(--text-primary);
+  line-height: 1.8;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  font-weight: 600;
+  margin: 1.6em 0 0.8em;
+  line-height: 1.3;
+  scroll-margin-top: 120px;
+}
+
+.markdown-body h1 {
+  font-size: 32px;
+}
+
+.markdown-body h2 {
+  font-size: 26px;
+}
+
+.markdown-body h3 {
+  font-size: 20px;
+}
+
+.markdown-body p {
+  margin: 1em 0;
+  color: var(--text-secondary);
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 20px;
+  margin: 1em 0;
+}
+
+.markdown-body blockquote {
+  margin: 1.2em 0;
+  padding: 0.8em 1.2em;
+  border-left: 4px solid var(--accent);
+  background: var(--blockquote-bg);
+  border-radius: var(--radius-md);
+}
+
+.markdown-body pre {
+  background: var(--code-bg);
+  padding: 16px;
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  border: 1px solid var(--panel-border);
+}
+
+.markdown-body pre code {
+  display: block;
+  background: transparent;
+  padding: 0;
+}
+
+.markdown-body code {
+  background: var(--code-bg);
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.4em 0;
+}
+
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid var(--divider-color);
+  padding: 10px 14px;
+}
+
+.markdown-body a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.toc-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.toc-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px; /* 减小导航项间距 */
+}
+
+.toc-item {
+  cursor: pointer;
+  color: var(--text-secondary);
+  border-radius: 8px;
+  padding: 4px 8px; /* 略小的内边距 */
+  transition: background var(--transition-base);
+  display: block;
+}
+
+/* 只改变背景，高亮时字体颜色保持不变 */
+.toc-item:hover {
+  background: rgba(96, 165, 250, 0.12);
+}
+.toc-item.active {
+  background: rgba(96, 165, 250, 0.16);
+}
+
+/* 文本单行显示，超出省略 */
+.toc-text {
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+.toc-item.level-2 {
+  margin-left: 8px;
+}
+
+.toc-item.level-3 {
+  margin-left: 16px;
+}
+
+.toc-empty {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.mobile-nav-drawer {
+  background: var(--panel-bg);
+  color: var(--text-primary);
+  --el-drawer-bg-color: var(--panel-bg);
+}
+
+.mobile-nav-drawer .el-drawer__body {
+  padding: 28px 20px;
+  background: transparent;
+  color: inherit;
+}
+
+.mobile-nav-drawer .sidebar-tree {
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+}
+
+@media (max-width: 1200px) {
+  .layout {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+
+  .toc-panel {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .sidebar-panel {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .layout {
+    padding: 12px 12px 20px;
+    gap: 12px;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+}

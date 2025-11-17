@@ -1,0 +1,26 @@
+{
+  "name": "daily-notes",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "type-check": "vue-tsc --noEmit --skipLibCheck"
+  },
+  "dependencies": {
+    "element-plus": "^2.7.8",
+    "highlight.js": "^11.9.0",
+    "markdown-it": "^14.1.0",
+    "vue": "^3.5.10",
+    "vue-router": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
+    "@vitejs/plugin-vue": "^5.1.2",
+    "typescript": "^5.4.2",
+    "vite": "^5.3.4",
+    "vue-tsc": "^2.1.6"
+  }
+}
