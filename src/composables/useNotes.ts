@@ -36,10 +36,6 @@ export function useNotes() {
       const raw = typeof mod === 'string' ? mod : mod?.default;
       content = raw ?? '';
       contentCache.set(definition.path, content);
-      const title = extractTitle(content);
-      if (title) {
-        definition.title = title;
-      }
     }
 
     const { loader: _loader, ...noteMeta } = definition;
@@ -111,9 +107,4 @@ function toSegments(relativePath: string): string[] {
   const last = parts.pop() ?? '';
   const filename = last.replace(/\.md$/i, '');
   return [...parts, filename].filter(Boolean);
-}
-
-function extractTitle(content: string): string | null {
-  const headingMatch = content.match(/^#\s+(.+)$/m);
-  return headingMatch ? headingMatch[1].trim() : null;
 }
