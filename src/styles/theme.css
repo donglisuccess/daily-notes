@@ -22,6 +22,16 @@ html[data-theme='light'] {
   --el-bg-color-overlay: var(--panel-bg);
   --el-text-color-primary: var(--text-primary);
   --el-text-color-regular: var(--text-secondary);
+  --code-text-strong: #0f172a;
+  --hljs-comment: #7c8aab;
+  --hljs-keyword: #c41d7f;
+  --hljs-built-in: #7c3aed;
+  --hljs-string: #0f766e;
+  --hljs-title: #0f2ea1;
+  --hljs-attr: #b45309;
+  --hljs-addition: #15803d;
+  --hljs-deletion: #c2410c;
+  --hljs-punctuation: #475569;
 }
 
 html[data-theme='dark'] {
@@ -38,6 +48,16 @@ html[data-theme='dark'] {
   --el-bg-color-overlay: var(--panel-bg);
   --el-text-color-primary: var(--text-primary);
   --el-text-color-regular: var(--text-secondary);
+  --code-text-strong: #e2e8f0;
+  --hljs-comment: #94a3b8;
+  --hljs-keyword: #ff8ab0;
+  --hljs-built-in: #c084fc;
+  --hljs-string: #5eead4;
+  --hljs-title: #c4d5ff;
+  --hljs-attr: #fbbf24;
+  --hljs-addition: #4ade80;
+  --hljs-deletion: #fb7185;
+  --hljs-punctuation: #cbd5f5;
 }
 
 .app-shell {
@@ -185,6 +205,7 @@ html[data-theme='dark'] {
   border-radius: var(--radius-md);
   overflow-x: auto;
   border: 1px solid var(--panel-border);
+  color: var(--code-text-strong);
 }
 
 .markdown-body pre code {
@@ -197,6 +218,70 @@ html[data-theme='dark'] {
   background: var(--code-bg);
   padding: 2px 6px;
   border-radius: 8px;
+  font-family: 'JetBrains Mono', 'Fira Code', Consolas, 'Segoe UI Mono', Menlo,
+    Monaco, monospace;
+  color: var(--code-text-strong);
+}
+
+.hljs {
+  background: transparent;
+  color: var(--code-text-strong);
+  line-height: 1.7;
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--hljs-comment);
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-literal,
+.hljs-selector-tag,
+.hljs-doctag {
+  color: var(--hljs-keyword);
+}
+
+.hljs-built_in,
+.hljs-type,
+.hljs-meta {
+  color: var(--hljs-built-in);
+}
+
+.hljs-string,
+.hljs-symbol,
+.hljs-template-variable,
+.hljs-template-tag,
+.hljs-regexp {
+  color: var(--hljs-string);
+}
+
+.hljs-title,
+.hljs-section,
+.hljs-name {
+  color: var(--hljs-title);
+  font-weight: 600;
+}
+
+.hljs-number,
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-params {
+  color: var(--hljs-attr);
+}
+
+.hljs-addition {
+  color: var(--hljs-addition);
+}
+
+.hljs-deletion {
+  color: var(--hljs-deletion);
+}
+
+.hljs-subst,
+.hljs-punctuation {
+  color: var(--hljs-punctuation);
 }
 
 .markdown-body table {
