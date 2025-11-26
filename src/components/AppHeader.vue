@@ -2,22 +2,12 @@
 import ThemeToggle from './ThemeToggle.vue';
 import IconMenu from './icons/IconMenu.vue';
 
-const props = defineProps<{ theme: 'light' | 'dark'; isPersonalMode: boolean }>();
+defineProps<{ theme: 'light' | 'dark' }>();
 const emit = defineEmits<{
   (e: 'toggle-theme'): void;
   (e: 'toggle-menu'): void;
   (e: 'navigate-home'): void;
-  (e: 'enter-personal-mode'): void;
-  (e: 'exit-personal-mode'): void;
 }>();
-
-const handlePersonalModeClick = () => {
-  if (props.isPersonalMode) {
-    emit('exit-personal-mode');
-    return;
-  }
-  emit('enter-personal-mode');
-};
 </script>
 
 <template>
@@ -31,12 +21,7 @@ const handlePersonalModeClick = () => {
         <span>Markdown 驱动的个人知识库</span>
       </button>
     </div>
-    <div class="header-actions">
-      <button class="personal-mode-btn" type="button" @click="handlePersonalModeClick">
-        {{ props.isPersonalMode ? '退出个人模式' : '个人模式' }}
-      </button>
-      <ThemeToggle :theme="props.theme" @toggle="emit('toggle-theme')" />
-    </div>
+    <ThemeToggle :theme="theme" @toggle="emit('toggle-theme')" />
   </header>
 </template>
 
@@ -53,7 +38,6 @@ const handlePersonalModeClick = () => {
   top: 0;
   z-index: 10;
   min-height: var(--header-height);
-  gap: 12px;
 }
 
 .header-left {
@@ -104,61 +88,6 @@ const handlePersonalModeClick = () => {
 .menu-toggle:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.personal-mode-btn {
-  border: 1px solid var(--panel-border);
-  border-radius: 999px;
-  background: var(--panel-bg);
-  color: var(--text-primary);
-  padding: 10px 18px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: border-color var(--transition-base), transform var(--transition-base),
-    color var(--transition-base);
-}
-
-.personal-mode-btn:hover {
-  border-color: var(--accent);
-  transform: translateY(-1px);
-  color: var(--accent);
-}
-
-.personal-mode-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-@media (max-width: 600px) {
-  .app-header {
-    padding: 14px 16px;
-  }
-
-  .header-actions {
-    gap: 8px;
-  }
-
-  .personal-mode-btn {
-    padding: 6px 12px;
-    font-size: 13px;
-  }
-
-  :deep(.theme-toggle) {
-    padding: 6px 12px;
-    font-size: 13px;
-  }
-
-  :deep(.theme-toggle span) {
-    font-size: 12px;
-  }
 }
 
 @media (min-width: 900px) {
