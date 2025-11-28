@@ -112,6 +112,30 @@ function injectNoteAssets(content: string, notePath: string) {
     }
   );
 
+  // Resolve <video src="../..."> attributes so markdown HTML 中的视频可以正确加载
+  transformed = transformed.replace(
+    /<video([^>]*?)src=(['"])((?:\.\.?\/)[^'">]+)\2([^>]*)>/gu,
+    (match, before, quote, rawPath, after) => {
+      const assetUrl = resolveRelativeAsset(notePath, String(rawPath));
+      if (!assetUrl) {
+        return match;
+      }
+      return `<video${before}src=${quote}${assetUrl}${quote}${after}>`;
+    }
+  );
+
+  // Resolve <source src="../..."> inside <video>
+  transformed = transformed.replace(
+    /<source([^>]+)src=(['"])((?:\.\.?\/)[^'">]+)\2([^>]*)>/gu,
+    (match, before, quote, rawPath, after) => {
+      const assetUrl = resolveRelativeAsset(notePath, String(rawPath));
+      if (!assetUrl) {
+        return match;
+      }
+      return `<source${before}src=${quote}${assetUrl}${quote}${after}>`;
+    }
+  );
+
   return transformed;
 }
 
@@ -235,6 +259,29 @@ onBeforeUnmount(() => cleanupObserver());
 
 .markdown-body {
   padding-bottom: 80px;
+}
+
+/* 视频样式：保证嵌入的视频自适应宽度并保持高度比例
+   使用 ::v-deep 作用于由 v-html 插入的元素（scoped 样式默认无法匹配 v-html 生成的节点） */
+.markdown-body ::v-deep video,
+.markdown-body ::v-deep source,
+.markdown-body ::v-deep p > video,
+.markdown-body ::v-deep figure video,
+.markdown-body ::v-deep iframe {
+  /* 强制视频/iframe 宽度占满父容器（中间内容区域） */
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  display: block !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+}
+
+.markdown-body ::v-deep video {
+  background: #000;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  object-fit: contain;
 }
 
 .intro-panel {
