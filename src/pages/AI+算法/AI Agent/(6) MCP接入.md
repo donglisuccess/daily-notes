@@ -1,4 +1,4 @@
-## 一、浏览器控制MCP服务-胡
+## 一、浏览器控制MCP服务
 > 一个使用 Playwright 提供浏览器自动化功能的 Model Context Protocol (MCP) 服务器。该服务器使 LLM 能够通过结构化的无障碍快照与网页进行交互，从而绕过了对屏幕截图或视觉调优模型的需求。
 
 具体可以参考魔搭社区MCP广场Playwright MCP服务:[MCP - Playwright浏览器自动化工具](https://www.modelscope.cn/mcp/servers/@microsoft/playwright-mcp)
