@@ -80,6 +80,10 @@ html[data-theme='dark'] {
   max-width: 100%;
 }
 
+.layout.layout--no-toc {
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+}
+
 .panel {
   background: var(--panel-bg);
   border: 1px solid var(--panel-border);

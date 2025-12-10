@@ -24,6 +24,7 @@ const activeHeading = ref<string | null>(null);
 const isMobileNavOpen = ref(false);
 const currentPath = computed(() => (route.path.startsWith(NOTE_ROUTE_PREFIX) ? route.path : ''));
 let loadToken = 0;
+const showToc = computed(() => Boolean(currentNote.value));
 
 watch(
   () => currentPath.value,
@@ -109,7 +110,7 @@ const handleNavigateHome = () => {
       @navigate-home="handleNavigateHome"
     />
 
-    <div class="layout">
+    <div class="layout" :class="{ 'layout--no-toc': !showToc }">
       <section class="sidebar-panel panel">
         <div class="sidebar-scroll">
           <SidebarTree
@@ -126,7 +127,12 @@ const handleNavigateHome = () => {
         @active-heading-change="handleActiveHeading"
       />
 
-      <TocSidebar :headings="headings" :active-id="activeHeading" @navigate="handleNavigate" />
+      <TocSidebar
+        v-if="showToc"
+        :headings="headings"
+        :active-id="activeHeading"
+        @navigate="handleNavigate"
+      />
     </div>
 
     <ElDrawer

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ElTree } from 'element-plus';
 import 'element-plus/es/components/tree/style/css';
-import { ref, watch } from 'vue';
+import { computed } from 'vue';
 import type { TreeNode } from '@/types/note';
+import { NOTE_ROUTE_PREFIX } from '@/router';
 import IconDocument from './icons/IconDocument.vue';
 import IconFolder from './icons/IconFolder.vue';
 
@@ -18,14 +19,26 @@ const treeProps = {
   label: 'label'
 };
 
-const currentKey = ref(props.currentPath);
-
-watch(
-  () => props.currentPath,
-  (val) => {
-    currentKey.value = val;
+const pathSegments = computed(() => {
+  if (!props.currentPath || !props.currentPath.startsWith(NOTE_ROUTE_PREFIX)) {
+    return [];
   }
-);
+  const relative = props.currentPath.slice(NOTE_ROUTE_PREFIX.length).replace(/^\//, '');
+  if (!relative) return [];
+  return relative.split('/').map((segment) => decodeURIComponent(segment));
+});
+
+const currentNodeKey = computed(() => {
+  if (pathSegments.value.length === 0) return '';
+  return pathSegments.value.join('/');
+});
+
+const expandedKeys = computed(() => {
+  if (pathSegments.value.length <= 1) return [];
+  return pathSegments.value.slice(0, -1).map((_, idx) => pathSegments.value.slice(0, idx + 1).join('/'));
+});
+
+const treeRenderKey = computed(() => `${currentNodeKey.value}|${expandedKeys.value.join('|')}`);
 
 const handleNodeClick = (node: TreeNode) => {
   if (node.type === 'file' && node.path) {
@@ -40,19 +53,22 @@ const handleNavigateHome = () => {
 
 <template>
   <div class="sidebar-tree-wrapper">
-    <button class="sidebar-home" :class="{ active: !currentKey }" type="button" @click="handleNavigateHome">
+    <button class="sidebar-home" :class="{ active: !currentNodeKey }" type="button" @click="handleNavigateHome">
       <span class="sidebar-home-icon">🏠</span>
       <span class="sidebar-home-label">首页</span>
     </button>
     <ElTree
+      :key="treeRenderKey"
       class="sidebar-tree"
       :data="data"
       :expand-on-click-node="false"
-      default-expand-all
+      :default-expand-all="false"
+      :default-expanded-keys="expandedKeys"
+      :accordion="true"
       :props="treeProps"
       highlight-current
       node-key="id"
-      :current-node-key="currentKey"
+      :current-node-key="currentNodeKey"
       @node-click="handleNodeClick"
     >
       <template #default="{ data }">

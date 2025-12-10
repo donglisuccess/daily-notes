@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { LoadedNote, OutlineHeading } from '@/types/note';
 import { resolveNoteAsset } from '@/utils/assets';
 import { renderMarkdown } from '@/utils/markdown';
@@ -15,6 +15,8 @@ const htmlContent = ref('');
 const headingsCache = ref<OutlineHeading[]>([]);
 const scrollRef = ref<HTMLElement>();
 const observer = ref<IntersectionObserver>();
+const lightboxSrc = ref<string | null>(null);
+let hasImageListener = false;
 
 const breadcrumb = computed(() => {
   const segments = props.note?.segments;
@@ -28,11 +30,13 @@ watch(
   () => props.note?.content,
   async (value) => {
     cleanupObserver();
+    lightboxSrc.value = null;
     if (!value) {
       htmlContent.value = '';
       headingsCache.value = [];
       emit('update:headings', []);
       emit('active-heading-change', null);
+      lightboxSrc.value = null;
       return;
     }
     let source = value;
@@ -46,6 +50,7 @@ watch(
     emit('update:headings', headings);
 
     await nextTick();
+    ensureImageListener();
     setupObserver();
     if (headings.length > 0) {
       emit('active-heading-change', headings[0].id);
@@ -150,7 +155,54 @@ function escapeCss(value: string) {
   return value.replace(/[^a-zA-Z0-9_-]/g, '_');
 }
 
-onBeforeUnmount(() => cleanupObserver());
+function handleImageClick(event: MouseEvent) {
+  const target = event.target as HTMLElement | null;
+  if (!target || !(target instanceof HTMLImageElement)) {
+    return;
+  }
+  const src = target.currentSrc || target.src;
+  if (!src) {
+    return;
+  }
+  lightboxSrc.value = src;
+}
+
+const closeLightbox = () => {
+  lightboxSrc.value = null;
+};
+
+const handleKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') {
+    closeLightbox();
+  }
+};
+
+function ensureImageListener() {
+  const container = scrollRef.value;
+  if (!container || hasImageListener) {
+    return;
+  }
+  container.addEventListener('click', handleImageClick);
+  hasImageListener = true;
+}
+
+function cleanupImageListener() {
+  if (hasImageListener && scrollRef.value) {
+    scrollRef.value.removeEventListener('click', handleImageClick);
+  }
+  hasImageListener = false;
+}
+
+onMounted(() => {
+  ensureImageListener();
+  window.addEventListener('keydown', handleKeydown);
+});
+
+onBeforeUnmount(() => {
+  cleanupObserver();
+  cleanupImageListener();
+  window.removeEventListener('keydown', handleKeydown);
+});
 </script>
 
 <template>
@@ -218,6 +270,20 @@ onBeforeUnmount(() => cleanupObserver());
           </section>
         </div>
       </div>
+    </div>
+
+    <div
+      v-if="lightboxSrc"
+      class="image-lightbox"
+      role="dialog"
+      aria-modal="true"
+      aria-label="图片预览"
+      @click="closeLightbox"
+    >
+      <img :src="lightboxSrc" alt="放大图片" @click.stop />
+      <button class="image-lightbox__close" type="button" aria-label="关闭预览" @click.stop="closeLightbox">
+        Close
+      </button>
     </div>
   </div>
 </template>
@@ -385,6 +451,49 @@ onBeforeUnmount(() => cleanupObserver());
 
 .intro-tip-card {
   grid-column: span 2;
+}
+
+.markdown-body ::v-deep img {
+  cursor: zoom-in;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+  border-radius: var(--radius-md);
+}
+
+.markdown-body ::v-deep img:hover {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+}
+
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  z-index: 2000;
+}
+
+.image-lightbox img {
+  max-width: min(92vw, 1200px);
+  max-height: 88vh;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 60px rgba(0, 0, 0, 0.35);
+  background: #0f172a;
+}
+
+.image-lightbox__close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  letter-spacing: 0.02em;
 }
 
 @media (max-width: 768px) {
