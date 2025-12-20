@@ -469,3 +469,208 @@ AIMessage(content='你是 dongli！'....)
 至此数据库持久化已经完成。
 
 ## 五、文件持久化 `FileSaver` —— 进阶
+`langgraph` 并没有提供本地文件保存的的方法，所以可以根据 `MongodbSaver` 的实现思路，实现一个 `FileSaver`，其原理都是一样的，就是将数据保存和读取。
+
+### 5.1 BaseCheckpointSaver
+在 `BaseCheckpointSaver` 类中存在几个方法在实现 `FileSaver` 时需要单独实现，如下：
+- **get_tuple:** 在每次根据 `thread_id` 获取历史消息中调用。
+- **put:** 每次存在数据增量的时候，都会调用，数据传递的是全量的数据
+- **put_writes:** 每次存在数据增量的时候，就会调用，数据传递的是增量的数据。
+从前端领域理解实现 `FileSaver` 其实很简单，这些方法都是基础类定义好的，在会话中的节点会调用这个方法，并且参数传递过来，我们需要做的就是对参数进行处理加工保存，然后在某一个合适的时机在取出来，这里的时机也都是定义好的。
+
+### 5.2 代码实现 `FileSaver`
+**5.2.1 创建 `FileSaver` 类**
+```python
+from pathlib import Path
+from langgraph.checkpoint.base import BaseCheckpointSaver
+class FileSaver(BaseCheckpointSaver):
+    def __init__(self, *, base_path):
+        super().__init__()
+        self.base_path = Path(base_path)
+
+        # 确保基础目录存在
+        self.base_path.mkdir(parents=True, exist_ok=True)
+```
+
+**5.2.2 实现 `put` 方法**
+```python
+from pathlib import Path
+from langchain_core.runnables import RunnableConfig
+from langgraph.checkpoint.base import (Checkpoint, CheckpointMetadata, ChannelVersions, CheckpointTuple)
+
+import pickle
+import json
+
+def _serialize_data(self, obj: Any) -> str:
+    try:
+        import base64
+        pickled = pickle.dumps(obj)
+        return base64.b64encode(pickled).decode('ascii')
+    except Exception as e:
+        print(f"序列化失败: {e}")
+        return None
+
+def put(
+    self,
+    config: RunnableConfig,
+    checkpoint: Checkpoint,
+    metadata: CheckpointMetadata,
+    new_versions: ChannelVersions,
+) -> RunnableConfig:
+    # 保存的位置在 base_path/[thread_id]/[checkpoint_id].json 文件
+    thread_id = config["configurable"]["thread_id"]
+    checkpoint_id = checkpoint["id"]
+    checkpoint_path = self.__get_checkpoint_path(thread_id, checkpoint_id)
+
+    # 数据序列化
+    checkpoint_data = {
+        "checkpoint": self._serialize_data(checkpoint),
+        "metadata": self._serialize_data(metadata)
+    }
+    # 如果文件不存在，则创建
+    p = Path(checkpoint_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(checkpoint_path, 'w', encoding='utf-8') as f:
+        json.dump(checkpoint_data, f, ensure_ascii=False, indent=2)
+
+        return {
+            "configurable": {
+                "thread_id": thread_id,
+                "checkpoint_id": checkpoint_id,
+            }
+        }
+
+```
+
+**5.2.3 实现 `get_tuple` 方法**
+```python
+from langchain_core.runnables import RunnableConfig
+from langgraph.checkpoint.base import (CheckpointTuple)
+from pathlib import Path
+
+def _deserialize_data(self, data: str) -> Any:
+    """反序列化数据"""
+    try:
+        import base64
+        decoded = base64.b64decode(data)
+        return pickle.loads(decoded)
+    except Exception as e:
+        print(f"反序列化失败: {e}")
+        return None
+
+def get_tuple(self, config: RunnableConfig) -> Optional[CheckpointTuple]:
+    print("【get_tuple】")
+    # 1、取出 thread_id 和 checkpoint_id
+    thread_id = config["configurable"]["thread_id"]
+    checkpoint_id = config["configurable"].get("checkpoint_id", "")
+    # 2、根据 thread_id 拼接出文件夹
+    if not thread_id:
+        return None
+
+    dir_path = Path.joinpath(self.base_path, thread_id)
+
+    if not dir_path.exists() or not dir_path.is_dir():
+        return None
+    # 3、获取全部的文件
+    file_list = list(dir_path.glob(f"*.json"))
+    # 4、将全部文件倒序排列
+    file_list.sort(key=lambda x: x.stem, reverse=True)
+    last_file = file_list[0]
+    last_file_path = Path.joinpath(dir_path, f"{last_file}")
+    # 5、读取第一个文件并解析
+    with open(last_file_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+        # 反序列化数据
+        checkpoint = self._deserialize_data(data["checkpoint"])
+        metadata = self._deserialize_data(data["metadata"])
+        # 6、返回 CheckpointTuple 对象
+        return CheckpointTuple(
+            config={
+                "configurable": {
+                    "thread_id": thread_id,
+                    "checkpoint_id": checkpoint_id,
+                }
+            },
+            checkpoint= checkpoint,
+            metadata=metadata,
+            pending_writes=[],
+            parent_config=None
+        )
+```
+
+**5.2.4 实现 `put_writes` 方法**
+`put_writes` 方法可以不实现，我们方便起见，可以只保存全量数据，但是像 `MongodbSaver` 和 `redisSaver` 其实都是保存增量数据和全量数据的。
+```python
+def put_writes(
+    self,
+    config: RunnableConfig,
+    writes: Sequence[tuple[str, Any]],
+    task_id: str,
+    task_path: str = "",
+) -> None:
+    pass
+```
+
+**5.2.5 智能体代码**
+```python
+from langgraph.prebuilt import create_react_agent
+from langchain_community.agent_toolkits.file_management import FileManagementToolkit
+from langchain_core.runnables import RunnableConfig
+
+from FileSaver import FileSaver
+from common import llm
+
+memory = FileSaver(base_path="D:/ai-agent/ai-agent-test1/temp/file-saver-data")
+file_tools = FileManagementToolkit(root_dir="D:/ai-agent/ai-agent-test1/temp/").get_tools()
+
+def create_agent():
+    config = RunnableConfig(configurable={"thread_id": "1"})
+    agent = create_react_agent(
+        model=llm,
+        tools=file_tools,
+        checkpointer=memory,
+        debug=True
+    )
+    # res = agent.invoke(input={"messages": [("user", "你好，我是dongli")]}, config=config)
+    res = agent.invoke(input={"messages": [("user", "你知道我是谁吗？")]}, config=config)
+    print(res)
+
+if __name__ == "__main__":
+    create_agent()
+```
+
+**5.2.6 效果展示**
+日志输出：
+```txt
+【get_tuple】
+[values] {'messages': [HumanMessage(content='你好，我是dongli', additional_kwargs={}, response_metadata={}, 
+id='9c2f7534-a2ef-4937-9123-1670aff0b7b8'), AIMessage(content='你好，dongli！有什么我可以帮你的吗？', additional_kwargs={}, response_metadata=
+{'finish_reason': 'stop', 'model_name': 'qwen3-max'}, id='run--492813a1-6b8e-4708-b54c-63c0dd90ae4a-0'), HumanMessage(content='你知道我是谁吗？
+', additional_kwargs={}, response_metadata={}, id='efd628a4-2fa7-4b2e-91a1-c6cb96ef961d')]}
+
+[updates] {'agent': {'messages': [AIMessage(content='我知道你是 dongli！你之前提到过你的名字。有什么我可以帮你的吗？', additional_kwargs={}, 
+response_metadata={'finish_reason': 'stop', 'model_name': 'qwen3-max'}, id='run--008a71bf-ea0e-4b23-87a0-0874c441eaaf-0')]}}
+
+[values] {'messages': [HumanMessage(content='你好，我是dongli', additional_kwargs={}, response_metadata={}, 
+id='9c2f7534-a2ef-4937-9123-1670aff0b7b8'), AIMessage(content='你好，dongli！有什么我可以帮你的吗？', additional_kwargs={}, response_metadata=
+{'finish_reason': 'stop', 'model_name': 'qwen3-max'}, id='run--492813a1-6b8e-4708-b54c-63c0dd90ae4a-0'), HumanMessage(content='你知道我是谁吗？
+', additional_kwargs={}, response_metadata={}, id='efd628a4-2fa7-4b2e-91a1-c6cb96ef961d'), AIMessage(content='我知道你是 dongli！你之前提到过你的
+名字。有什么我可以帮你的吗？', additional_kwargs={}, response_metadata={'finish_reason': 'stop', 'model_name': 'qwen3-max'}, 
+id='run--008a71bf-ea0e-4b23-87a0-0874c441eaaf-0')]}
+
+{'messages': [HumanMessage(content='你好，我是dongli', additional_kwargs={}, response_metadata={}, id='9c2f7534-a2ef-4937-9123-1670aff0b7b8'), 
+AIMessage(content='你好，dongli！有什么我可以帮你的吗？', additional_kwargs={}, response_metadata={'finish_reason': 'stop', 'model_name': 
+'qwen3-max'}, id='run--492813a1-6b8e-4708-b54c-63c0dd90ae4a-0'), HumanMessage(content='你知道我是谁吗？', additional_kwargs={}, 
+response_metadata={}, id='efd628a4-2fa7-4b2e-91a1-c6cb96ef961d'), AIMessage(content='我知道你是 dongli！你之前提到过你的名字。有什么我可以帮你的吗？
+', additional_kwargs={}, response_metadata={'finish_reason': 'stop', 'model_name': 'qwen3-max'}, 
+id='run--008a71bf-ea0e-4b23-87a0-0874c441eaaf-0')]}
+```
+其实从日志打印的 `AIMessage` 中：
+```python
+我知道你是 dongli！你之前提到过你的名字。有什么我可以帮你的吗？
+```
+可以知道这个智能体已经具备记忆能力了。
+
+生成的数据文件如下所示：
+![alt text](./images/8-10.png)
