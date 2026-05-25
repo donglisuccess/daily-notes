@@ -223,3 +223,243 @@ df.describe(include="all")
 ```
 ## 四、行列选择，这是 pandas 的基本功
 `pandas` 最容易让人混乱的地方就是选数据。
+### 1、选一列
+```python
+df["name"]
+```
+输出：返回 `Series`。
+```shell
+0    张三
+1    李四
+2    王五
+Name: name, dtype: str
+```
+### 2、选多列
+```python
+df[["name", "age"]]
+```
+输出：返回 `DataFrame`，注意使用的是 **双中括号**。
+```shell
+	name	age
+0	张三	18
+1	李四	20
+2	王五	22
+```
+### 3、按位置选行
+选第 1 行：
+```python
+df.iloc[0]
+```
+输出：
+```shell
+name    张三
+age     18
+city    北京
+Name: 0, dtype: object
+```
+选第 1 到第 3 行，不包括第 4 行。
+```python```
+df.iloc[0:3]
+```
+输出：
+```shell
+	name	age	city
+0	张三	18	北京
+1	李四	20	上海
+```
+### 4、按标签选择行列
+```python
+df.loc[0, "name"]
+```
+选第 0 行的 `name` 列。
+输出：
+```python
+'张三'
+```
+```python
+df.loc[0:1, ["name", "age"]]
+```
+输出：
+```shell
+	name	age
+0	张三	18
+1	李四	20
+```
+注意：`loc` 是标签切片，结束位置通常包含。
+### 5、条件筛选
+```python
+df[df["age"] >= 19]
+```
+筛选 `age` 大于等于19 的行。
+```python
+df[(df["age"] >= 19) & (df["city"] == "上海")]
+```
+输出：
+```shell
+	name	age	city
+1	李四	20	上海
+```
+注意：
+`and` 要写成 `&`
+`or` 要写成 `|`
+每个条件要加括号
+## 五、新增、修改、删除列
+### 1、新增列
+```python
+df["is_adult"] = df["age"] >= 18
+```
+输出：
+```shell
+	name	age	city	is_adult
+0	张三	18	北京	True
+1	李四	20	上海	True
+2	王五	22	广州1	True
+```
+### 2、基于已有列计算新列
+```python
+df["age_after_5_years"] = df["age"] + 5
+```
+输出：
+```shell
+	name	age	city	is_adult	age_after_5_years
+0	张三	18	北京	True	23
+1	李四	20	上海	True	25
+2	王五	22	广州1	True	27
+```
+### 3、修改列
+```python
+df["city"] = df["city"].replace("北京", "北京市")
+```
+输出：
+```shell
+	name	age	city	is_adult	age_after_5_years
+0	张三	18	北京市	True	23
+1	李四	20	上海	True	25
+2	王五	22	广州1	True	27
+```
+### 4、删除列
+```python
+df.drop(columns=["is_adult"])
+```
+### 5、删除行
+```python
+df.drop(index=[0])
+```
+## 六、缺失值处理，数据清洗的核心
+真实数据一定有脏数据。
+比如：
+```python
+data = {
+    "name": ["张三", "李四", None],
+    "age": [18, None, 22],
+    "city": ["北京", "上海", None]
+}
+
+df = pd.DataFrame(data)
+```
+### 1、判断缺失值
+```python
+df.isna()
+```
+输出：
+```shell
+	name	age	city
+0	False	False	False
+1	False	True	False
+2	True	False	True
+```
+每列缺失数量：
+```python
+df.isna().sum()
+```
+输出：
+```shell
+name    1
+age     1
+city    1
+dtype: int64
+```
+### 2、删除缺失的值
+```python
+df.dropna()
+```
+输出：
+```shell
+	name	age	city
+0	张三	18.0	北京
+```
+只看某列
+```python
+df.dropna(subset=["age"])
+```
+输出：
+```shell
+	name	age	city
+0	张三	18.0	北京
+2	NaN	22.0	NaN
+```
+### 3、填充缺失值
+```python
+df["age"] = df["age"].fillna(0)
+```
+输出：
+```shell
+	name	age	city
+0	张三	18.0	北京
+1	李四	0.0	上海
+2	NaN	22.0	NaN
+```
+用平均值填充：
+```python
+df["age"] = df["age"].fillna(df["age"].mean())
+```
+输出：
+```shell
+	name	age	city
+0	张三	18.0	北京
+1	李四	20.0	上海
+2	NaN	22.0	NaN
+```
+用默认文本填充：
+```python
+df["age"] = df["age"].fillna("未知")
+```
+输出：
+```shell
+	name	age	city
+0	张三	18.0	北京
+1	李四	未知	上海
+2	NaN	22.0	NaN
+```
+## 七、重复值处理
+### 1、查看重复行
+```python
+df.duplicated()
+```
+输出：
+```shell
+0    False
+1    False
+2    False
+3     True
+dtype: bool
+```
+### 2、删除重复行
+```python
+df.drop_duplicates()
+```
+输出：
+```shell
+ name	age	city
+0	张三	18.0	北京
+1	李四	NaN	上海
+2	NaN	22.0	NaN
+```
+### 3、按某几列判断重复
+```python
+df.drop_duplicates(subset=["name", "city"])
+```
+### 4、保留最后一条
+```python
+
+```
