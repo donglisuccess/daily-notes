@@ -461,5 +461,341 @@ df.drop_duplicates(subset=["name", "city"])
 ```
 ### 4、保留最后一条
 ```python
+df.drop_duplicates(subset=["name"], keep="last")
+```
+输出：
+```shell
+	name	age	city
+1	李四	NaN	上海
+2	NaN	22.0	NaN
+3	张三	18.0	北京
+```
+## 八、数据类型转换
+这是 pandas 深度的入口。很多 bug 都来自类型不对。
+### 1、查看类型
+```python
+df.dtypes
+```
+输出：
+```python
+name        str
+age     float64
+city        str
+dtype: object
+```
+### 2、转数字
+```python
+df["age"] = pd.to_numeric(df["age"])
+```
+输出：
+```shell
+	name	age	city
+0	张三	18.0	北京
+1	李四	NaN	上海
+2	NaN	22.0	NaN
+3	张三	18.0	北京
+```
+### 3、转时间
+```python
+from datetime import datetime
+df['current_date'] = pd.to_datetime(datetime.now().date())
+```
+输出：
+```shell
+	name	age	city	current_date
+0	张三	18.0	北京	2026-05-25
+1	李四	NaN	上海	2026-05-25
+2	NaN	22.0	NaN	2026-05-25
+3	张三	18.0	北京	2026-05-25	
+```
+## 九、转字符串
+```python
+df["name"] = df["name"].astype("string")
+```
+输出：
+```shell
+	name	age	city	current_date
+0	张三	18.0	北京	2026-05-25
+1	李四	NaN	上海	2026-05-25
+2	<NA>	22.0	NaN	2026-05-25
+3	张三	18.0	北京	2026-05-25
+```
+## 十、排序
+### 1、按一列排序
+```python
+df.sort_values("age")
+```
+输出：
+```shell
+	name	age	city	current_date
+0	张三	18.0	北京	2026-05-25
+3	张三	18.0	北京	2026-05-25
+2	<NA>	22.0	NaN	2026-05-25
+1	李四	NaN	上海	2026-05-25
+```
+### 2、倒序
+```shell
+df.sort_values("age", ascending=False)
+```
+输出：
+```shell
+name	age	city	current_date
+2	<NA>	22.0	NaN	2026-05-25
+0	张三	18.0	北京	2026-05-25
+3	张三	18.0	北京	2026-05-25
+1	李四	NaN	上海	2026-05-25
+```
+## 十一、groupby，pandas 的灵魂
+如果你只能学透一个高级功能，那就是 `groupby`
+你可以理解成 `SQL`：
+```sql
+SELECT city, AVG(age)
+FROM users
+GROUP BY city;
+```
+对应 `pandas`：
+```python
+df.group("city")["age"].mean()
+```
+### 1、示例数据
+```python
+data = {
+    "city": ["北京", "北京", "上海", "上海", "广州"],
+    "department": ["技术", "销售", "技术", "销售", "技术"],
+    "salary": [20000, 12000, 22000, 15000, 18000]
+}
 
+df = pd.DataFrame(data)
+```
+### 2、按城市统计平均工资
+```python
+df.groupby("city")["salary"].mean()
+```
+输出：
+```python
+city
+上海    18500.0
+北京    16000.0
+广州    18000.0
+Name: salary, dtype: float64
+```
+### 3、多字段分组
+```python
+df.groupby(["city", "department"])["salary"].mean()
+```
+输出：
+```shell
+city  department
+上海    技术            22000.0
+      销售            15000.0
+北京    技术            20000.0
+      销售            12000.0
+广州    技术            18000.0
+Name: salary, dtype: float64
+```
+### 4、多个聚合指标
+```python
+df.groupby("city")["salary"].agg(["mean", "max", "min", "count"])
+```
+输出：
+```shell
+	mean	max	min	count
+city				
+上海	18500.0	22000	15000	2
+北京	16000.0	20000	12000	2
+广州	18000.0	18000	18000	1
+```
+### 5、自定义聚合
+```python
+df.groupby("city").agg(
+    avg_salary=("salary", "mean"),
+    max_salary=("salary", "max"),
+    employee_count=("salary", "count")
+)
+```
+输出：
+```shell
+	avg_salary	max_salary	employee_count
+city			
+上海	18500.0	22000	2
+北京	16000.0	20000	2
+广州	18000.0	18000	1
+```
+## 十二、merge / join / concat，表之间的关系
+这个部分必须学深，因为它对应数据库里的表连接。
+### 1、concat：上下拼接或左右拼接
+上下拼接示例：
+```python
+# 第一份数据：10月份的销售记录
+df1 = pd.DataFrame({'日期': ['10-01', '10-02'], '销售额': [1000, 1200]})
+
+# 第二份数据：11月份的销售记录
+df2 = pd.DataFrame({'日期': ['11-01', '11-02'], '销售额': [1500, 1300]})
+
+# 上下拼接（axis=0 是默认值，可以不写）
+df_all = pd.concat([df1, df2], axis=0)
+```
+输出：
+```shell
+	日期	销售额
+0	10-01	1000
+1	10-02	1200
+0	11-01	1500
+1	11-02	1300
+```
+### 2、左右拼接
+当两份数据的行索引（比如都是按学号或日期排好的）能对齐时，就可以左右拼接：
+```python
+# 基础信息表
+df_base = pd.DataFrame({'姓名': ['张三', '李四'], '年龄': [20, 22]})
+# 成绩信息表
+df_score = pd.DataFrame({'数学': [95, 88], '英语': [92, 90]})
+# 左右拼接（指定 axis=1）
+df_combined = pd.concat([df_base, df_score], axis=1)
+```
+输出：
+```shell
+	姓名	年龄	数学	英语
+0	张三	20	95	92
+1	李四	22	88	90
+```
+### 3、merge：按字段关联
+用户表：
+```python
+users = pd.DataFrame({
+    "user_id": [1, 2, 3],
+    "name": ["张三", "李四", "王五"]
+})
+
+orders = pd.DataFrame({
+    "order_id": [101, 102, 103],
+    "user_id": [1, 2, 2],
+    "amount": [99, 199, 299]
+})
+
+result = orders.merge(users, on="user_id", how="left")
+```
+输出：
+```shell
+	order_id	user_id	amount	name
+0	101	1	99	张三
+1	102	2	199	李四
+2	103	2	299	李四
+```
+## 十三、字符串处理
+```python
+df["name"].str.len()
+```
+输出：
+```shell
+0    2
+1    2
+2    2
+Name: name, dtype: int64
+```
+判断是否包含：
+```python
+df[df["name"].str.contains("张", na=False)]
+```
+输出：
+```shell
+name	age	city
+0	张三	18	北京
+```
+去空格：
+```python
+df["name"] = df["name"].str.strip()
+```
+拆分：
+```python
+df["city"].str.split("北", expand=True)
+```
+## 十四、时间序列
+时间数据非常常见。
+```python
+df["created_at"] = pd.to_datetime(df["created_at"])
+```
+提取年份
+```python
+df["year"] = df["created_at"].dt.year
+```
+提取月份：
+```python
+df["month"] = df["created_at"].dt.month
+```
+按月统计订单金额：
+```shell
+df.groupby(df["created_at"].dt.to_period("M"))["amount"].sum()
+```
+## 十五、apply、map、transform
+这几个函数很多人乱用。你要分清楚。
+### 1、map：通常用于 Series 映射
+```python
+df["gender_text"] = df["gender"].map({
+    1: "男",
+    2: "女"
+})
+```
+### 2、apply：可以对行或列应用函数
+```python
+df["level"] = df["salary"].apply(
+    lambda x: "高薪" if x >= 20000 else "普通"
+)
+```
+对整行：
+```python
+df["desc"] = df.apply(
+    lambda row: f"{row['name']}来自{row['city']}",
+    axis=1
+)
+```
+## 十六、完整实战：订单数据分析
+### 1、构造数据
+```python
+import pandas as pd
+
+orders = pd.DataFrame({
+    "order_id": [1001, 1002, 1003, 1004, 1005, 1006],
+    "user_id": [1, 2, 1, 3, 2, 4],
+    "product": ["手机", "耳机", "电脑", "手机", "电脑", "耳机"],
+    "price": [3999, 299, 5999, 3999, 5999, 299],
+    "count": [1, 2, 1, 1, 1, 3],
+    "city": ["北京", "上海", "北京", "广州", "上海", None],
+    "created_at": [
+        "2026-01-01",
+        "2026-01-03",
+        "2026-02-01",
+        "2026-02-15",
+        "2026-03-01",
+        "2026-03-02"
+    ]
+})
+```
+输出：
+```shell
+	order_id	user_id	product	price	count	city	created_at
+0	1001	1	手机	3999	1	北京	2026-01-01
+1	1002	2	耳机	299	2	上海	2026-01-03
+2	1003	1	电脑	5999	1	北京	2026-02-01
+3	1004	3	手机	3999	1	广州	2026-02-15
+4	1005	2	电脑	5999	1	上海	2026-03-01
+5	1006	4	耳机	299	3	NaN	2026-03-02
+```
+### 2、查看数据
+```python
+orders.head(3)
+orders.info()
+orders.describe()
+```
+### 3、处理缺失城市
+```python
+orders["city"] = orders["city"].fillna("未知")
+```
+### 4、计算订单总价
+```python
+orders["amount"] = orders["price"] * orders["count"]
+```
+### 5、转时间
+```python
+df["created_at"] = pd.to_datetime(df["created_at"])	
 ```
