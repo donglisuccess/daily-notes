@@ -511,6 +511,10 @@ html[data-theme='dark'] {
     min-height: calc(100vh - var(--header-height));
   }
 
+  .layout.layout--no-toc {
+    grid-template-columns: 1fr;
+  }
+
   .sidebar-panel {
     display: none;
   }
