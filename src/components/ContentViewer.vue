@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import mermaid from 'mermaid';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { LoadedNote, OutlineHeading } from '@/types/note';
 import { resolveNoteAsset } from '@/utils/assets';
@@ -19,6 +20,10 @@ const lightboxSrc = ref<string | null>(null);
 const copyToast = ref('');
 let hasImageListener = false;
 let copyToastTimer: number | undefined;
+let mermaidBlockSequence = 0;
+let mermaidRenderTimer: number | undefined;
+let mermaidRenderToken = 0;
+let themeObserver: MutationObserver | undefined;
 
 const breadcrumb = computed(() => {
   const segments = props.note?.segments;
@@ -32,6 +37,7 @@ watch(
   () => props.note?.content,
   async (value) => {
     cleanupObserver();
+    mermaidRenderToken += 1;
     lightboxSrc.value = null;
     if (!value) {
       htmlContent.value = '';
@@ -53,6 +59,7 @@ watch(
 
     await nextTick();
     ensureImageListener();
+    await renderMermaidDiagrams();
     setupObserver();
     emit('active-heading-change', headings.length > 0 ? headings[0].id : null);
   },
@@ -93,6 +100,147 @@ function setupObserver() {
 function cleanupObserver() {
   observer.value?.disconnect();
   observer.value = undefined;
+}
+
+async function renderMermaidDiagrams() {
+  const container = scrollRef.value;
+  if (!container || typeof window === 'undefined') {
+    return;
+  }
+
+  const blocks = Array.from(container.querySelectorAll<HTMLElement>('[data-mermaid-block]'));
+  if (blocks.length === 0) {
+    return;
+  }
+
+  const token = ++mermaidRenderToken;
+  configureMermaid();
+
+  await Promise.all(
+    blocks.map(async (block) => {
+      const source = getMermaidSource(block);
+      if (!source.trim()) {
+        return;
+      }
+
+      block.dataset.mermaidSource = source;
+      block.classList.remove('mermaid-block--error');
+      block.setAttribute('aria-busy', 'true');
+
+      try {
+        const { svg, bindFunctions } = await mermaid.render(`mermaid-diagram-${++mermaidBlockSequence}`, source);
+        if (token !== mermaidRenderToken) {
+          return;
+        }
+
+        block.innerHTML = svg;
+        block.querySelector('svg')?.setAttribute('role', 'img');
+        bindFunctions?.(block);
+      } catch (error) {
+        if (token !== mermaidRenderToken) {
+          return;
+        }
+
+        console.warn('mermaid render failed', error);
+        block.classList.add('mermaid-block--error');
+        renderMermaidSourceFallback(block, source);
+      } finally {
+        if (token === mermaidRenderToken) {
+          block.removeAttribute('aria-busy');
+        }
+      }
+    })
+  );
+}
+
+function configureMermaid() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const styles = window.getComputedStyle(document.documentElement);
+  const readColor = (name: string, fallback: string) => styles.getPropertyValue(name).trim() || fallback;
+  const panelBg = readColor('--panel-bg', '#fffaf2');
+  const panelMuted = readColor('--panel-muted', '#f0e9dd');
+  const panelBorder = readColor('--divider-color', 'rgba(87, 70, 54, 0.14)');
+  const textPrimary = readColor('--text-primary', '#2f261f');
+  const textSecondary = readColor('--text-secondary', '#6d6258');
+  const accent = readColor('--accent', '#c96442');
+  const codeBg = readColor('--code-bg', '#ede5d8');
+
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: 'strict',
+    theme: 'base',
+    themeVariables: {
+      background: 'transparent',
+      mainBkg: panelBg,
+      primaryColor: panelBg,
+      primaryTextColor: textPrimary,
+      primaryBorderColor: accent,
+      secondaryColor: panelMuted,
+      secondaryTextColor: textPrimary,
+      secondaryBorderColor: panelBorder,
+      tertiaryColor: codeBg,
+      tertiaryTextColor: textPrimary,
+      tertiaryBorderColor: panelBorder,
+      lineColor: textSecondary,
+      clusterBkg: panelMuted,
+      clusterBorder: panelBorder,
+      edgeLabelBackground: panelBg,
+      nodeTextColor: textPrimary,
+      noteBkgColor: panelMuted,
+      noteTextColor: textPrimary,
+      noteBorderColor: panelBorder,
+      fontFamily: "'Inter', 'Noto Sans SC', 'Microsoft YaHei', sans-serif"
+    }
+  });
+}
+
+function getMermaidSource(block: HTMLElement) {
+  return block.dataset.mermaidSource ?? block.querySelector<HTMLElement>('[data-mermaid-source]')?.textContent ?? '';
+}
+
+function renderMermaidSourceFallback(block: HTMLElement, source: string) {
+  const pre = document.createElement('pre');
+  pre.className = 'mermaid-source';
+  pre.textContent = source;
+  block.replaceChildren(pre);
+}
+
+function setupThemeObserver() {
+  if (themeObserver || typeof MutationObserver === 'undefined') {
+    return;
+  }
+
+  themeObserver = new MutationObserver((records) => {
+    const hasThemeChange = records.some((record) => record.attributeName === 'data-theme');
+    if (hasThemeChange) {
+      scheduleMermaidRender();
+    }
+  });
+
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme']
+  });
+}
+
+function scheduleMermaidRender() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.clearTimeout(mermaidRenderTimer);
+  mermaidRenderTimer = window.setTimeout(() => {
+    void renderMermaidDiagrams();
+  }, 0);
+}
+
+function cleanupThemeObserver() {
+  themeObserver?.disconnect();
+  themeObserver = undefined;
+  window.clearTimeout(mermaidRenderTimer);
 }
 
 function injectNoteAssets(content: string, notePath: string) {
@@ -244,12 +392,14 @@ function cleanupImageListener() {
 
 onMounted(() => {
   ensureImageListener();
+  setupThemeObserver();
   window.addEventListener('keydown', handleKeydown);
 });
 
 onBeforeUnmount(() => {
   cleanupObserver();
   cleanupImageListener();
+  cleanupThemeObserver();
   window.clearTimeout(copyToastTimer);
   window.removeEventListener('keydown', handleKeydown);
 });
@@ -355,7 +505,7 @@ onBeforeUnmount(() => {
 
 .content-title {
   margin: 0;
-  font-size: clamp(30px, 4vw, 44px);
+  font-size: clamp(30px, 4vw, 38px);
   line-height: 1.16;
   color: var(--text-primary);
   font-weight: 680;

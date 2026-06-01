@@ -323,6 +323,36 @@ html[data-theme='dark'] {
   outline-offset: 2px;
 }
 
+.markdown-body .mermaid-block {
+  margin: 1.45em 0;
+  padding: 18px;
+  overflow-x: auto;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--panel-bg) 84%, var(--panel-muted));
+}
+
+.markdown-body .mermaid-block svg {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.markdown-body .mermaid-block[aria-busy='true'] {
+  min-height: 160px;
+}
+
+.markdown-body .mermaid-block--error {
+  background: var(--code-bg);
+}
+
+.markdown-body .mermaid-source {
+  margin: 0;
+  white-space: pre;
+}
+
 .hljs {
   background: transparent;
   color: var(--code-text-strong);
@@ -556,6 +586,12 @@ html[data-theme='dark'] {
   .markdown-body .code-block__bar {
     min-height: 36px;
     padding: 6px 7px 6px 12px;
+  }
+
+  .markdown-body .mermaid-block {
+    margin-right: -2px;
+    margin-left: -2px;
+    padding: 12px;
   }
 
   .markdown-body pre {

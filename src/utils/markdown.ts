@@ -94,6 +94,15 @@ function createRenderer(slugger: (value: string) => string, headings: OutlineHea
     const token = tokens[idx];
     const info = token.info ? token.info.trim() : '';
     const lang = info ? info.split(/\s+/g)[0] : 'text';
+
+    if (lang.toLowerCase() === 'mermaid') {
+      return [
+        '<div class="mermaid-block" data-mermaid-block>',
+        `<pre class="mermaid-source" data-mermaid-source>${md.utils.escapeHtml(token.content)}</pre>`,
+        '</div>'
+      ].join('');
+    }
+
     const rendered = defaultFenceRule
       ? defaultFenceRule(tokens, idx, options, env, self)
       : `<pre><code>${md.utils.escapeHtml(token.content)}</code></pre>`;
