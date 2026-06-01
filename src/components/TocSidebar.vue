@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { OutlineHeading } from '@/types/note';
 
-const props = defineProps<{
+defineProps<{
   headings: OutlineHeading[];
   activeId: string | null;
 }>();

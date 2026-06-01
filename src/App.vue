@@ -138,7 +138,7 @@ const handleNavigateHome = () => {
     <ElDrawer
       v-model="isMobileNavOpen"
       direction="ltr"
-      size="78%"
+      size="min(88vw, 340px)"
       :with-header="false"
       custom-class="mobile-nav-drawer"
     >

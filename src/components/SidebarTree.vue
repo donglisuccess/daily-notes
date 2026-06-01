@@ -54,7 +54,7 @@ const handleNavigateHome = () => {
 <template>
   <div class="sidebar-tree-wrapper">
     <button class="sidebar-home" :class="{ active: !currentNodeKey }" type="button" @click="handleNavigateHome">
-      <span class="sidebar-home-icon">🏠</span>
+      <span class="sidebar-home-mark" aria-hidden="true"></span>
       <span class="sidebar-home-label">首页</span>
     </button>
     <ElTree
@@ -91,58 +91,90 @@ const handleNavigateHome = () => {
 .sidebar-home {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  border-radius: 12px;
-  border: 1px solid var(--panel-border);
-  padding: 10px 14px;
+  gap: 9px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  padding: 9px 10px;
   background: transparent;
   color: var(--text-primary);
   cursor: pointer;
+  font-weight: 600;
   transition: border-color var(--transition-base), background var(--transition-base), color var(--transition-base);
 }
 
-.sidebar-home-icon {
-  font-size: 18px;
+.sidebar-home-mark {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--text-muted);
 }
 
 .sidebar-home.active {
-  background: rgba(96, 165, 250, 0.15);
-  border-color: var(--accent);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
   color: var(--accent);
 }
 
+.sidebar-home.active .sidebar-home-mark {
+  background: var(--accent);
+}
+
 .sidebar-home:hover {
-  border-color: var(--accent);
+  background: var(--panel-muted);
 }
 
 .sidebar-tree {
-  --el-tree-node-hover-bg-color: rgba(96, 165, 250, 0.12);
+  --el-tree-node-hover-bg-color: var(--panel-muted);
   background: transparent;
   color: var(--text-primary);
+  font-size: 14px;
 }
 
 .tree-node {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 4px;
-  border-radius: 8px;
+  min-width: 0;
+  padding: 5px 2px;
+  border-radius: var(--radius-sm);
+}
+
+.tree-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sidebar-tree :deep(.el-tree-node__content) {
-  padding: 4px 8px;
-  border-radius: 10px;
+  min-height: 34px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
 }
 
 .sidebar-tree :deep(.el-tree-node.is-current > .el-tree-node__content) {
-  background: rgba(96, 165, 250, 0.2);
+  background: var(--accent-soft);
+}
+
+.sidebar-tree :deep(.el-tree-node.is-current > .el-tree-node__content .tree-icon),
+.sidebar-tree :deep(.el-tree-node.is-current > .el-tree-node__content .tree-label) {
+  color: var(--accent);
+}
+
+.sidebar-tree :deep(.el-tree-node__expand-icon) {
+  color: var(--text-muted);
 }
 
 .tree-icon {
-  color: var(--text-secondary);
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+.tree-node.type-folder .tree-icon {
+  color: color-mix(in srgb, var(--accent) 72%, var(--text-muted));
 }
 
 .tree-node.type-file .tree-label {
-  font-weight: 500;
+  font-weight: 520;
 }
 </style>

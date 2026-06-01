@@ -16,7 +16,9 @@ const headingsCache = ref<OutlineHeading[]>([]);
 const scrollRef = ref<HTMLElement>();
 const observer = ref<IntersectionObserver>();
 const lightboxSrc = ref<string | null>(null);
+const copyToast = ref('');
 let hasImageListener = false;
+let copyToastTimer: number | undefined;
 
 const breadcrumb = computed(() => {
   const segments = props.note?.segments;
@@ -36,9 +38,9 @@ watch(
       headingsCache.value = [];
       emit('update:headings', []);
       emit('active-heading-change', null);
-      lightboxSrc.value = null;
       return;
     }
+
     let source = value;
     if (props.note?.path) {
       source = injectNoteAssets(source, props.note.path);
@@ -52,11 +54,7 @@ watch(
     await nextTick();
     ensureImageListener();
     setupObserver();
-    if (headings.length > 0) {
-      emit('active-heading-change', headings[0].id);
-    } else {
-      emit('active-heading-change', null);
-    }
+    emit('active-heading-change', headings.length > 0 ? headings[0].id : null);
   },
   { immediate: true }
 );
@@ -117,7 +115,6 @@ function injectNoteAssets(content: string, notePath: string) {
     }
   );
 
-  // Resolve <video src="../..."> attributes so markdown HTML 中的视频可以正确加载
   transformed = transformed.replace(
     /<video([^>]*?)src=(['"])((?:\.\.?\/)[^'">]+)\2([^>]*)>/gu,
     (match, before, quote, rawPath, after) => {
@@ -129,7 +126,6 @@ function injectNoteAssets(content: string, notePath: string) {
     }
   );
 
-  // Resolve <source src="../..."> inside <video>
   transformed = transformed.replace(
     /<source([^>]+)src=(['"])((?:\.\.?\/)[^'">]+)\2([^>]*)>/gu,
     (match, before, quote, rawPath, after) => {
@@ -155,16 +151,69 @@ function escapeCss(value: string) {
   return value.replace(/[^a-zA-Z0-9_-]/g, '_');
 }
 
-function handleImageClick(event: MouseEvent) {
+function handleContentClick(event: MouseEvent) {
   const target = event.target as HTMLElement | null;
-  if (!target || !(target instanceof HTMLImageElement)) {
+  if (!target) {
     return;
   }
+
+  const copyButton = target.closest<HTMLElement>('[data-copy-code]');
+  if (copyButton) {
+    void handleCopyCode(copyButton);
+    return;
+  }
+
+  if (!(target instanceof HTMLImageElement)) {
+    return;
+  }
+
   const src = target.currentSrc || target.src;
-  if (!src) {
+  if (src) {
+    lightboxSrc.value = src;
+  }
+}
+
+async function handleCopyCode(button: HTMLElement) {
+  const codeBlock = button.closest('.code-block');
+  const code = codeBlock?.querySelector('pre code')?.textContent ?? '';
+  if (!code) {
     return;
   }
-  lightboxSrc.value = src;
+
+  try {
+    await copyToClipboard(code);
+    copyToast.value = '复制成功';
+    button.textContent = '已复制';
+    window.clearTimeout(copyToastTimer);
+    copyToastTimer = window.setTimeout(() => {
+      copyToast.value = '';
+      button.textContent = '复制';
+    }, 1600);
+  } catch (error) {
+    console.warn('copy code failed', error);
+    copyToast.value = '复制失败';
+    window.clearTimeout(copyToastTimer);
+    copyToastTimer = window.setTimeout(() => {
+      copyToast.value = '';
+    }, 1600);
+  }
+}
+
+async function copyToClipboard(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = value;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
 }
 
 const closeLightbox = () => {
@@ -182,13 +231,13 @@ function ensureImageListener() {
   if (!container || hasImageListener) {
     return;
   }
-  container.addEventListener('click', handleImageClick);
+  container.addEventListener('click', handleContentClick);
   hasImageListener = true;
 }
 
 function cleanupImageListener() {
   if (hasImageListener && scrollRef.value) {
-    scrollRef.value.removeEventListener('click', handleImageClick);
+    scrollRef.value.removeEventListener('click', handleContentClick);
   }
   hasImageListener = false;
 }
@@ -201,6 +250,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   cleanupObserver();
   cleanupImageListener();
+  window.clearTimeout(copyToastTimer);
   window.removeEventListener('keydown', handleKeydown);
 });
 </script>
@@ -209,64 +259,37 @@ onBeforeUnmount(() => {
   <div class="content-shell panel">
     <div ref="scrollRef" class="content-scroll">
       <template v-if="note">
-        <header class="content-meta">
-          <p class="content-breadcrumb">{{ breadcrumb }}</p>
-          <h3 class="content-title">{{ note.title }}</h3>
-        </header>
-        <article class="markdown-body" v-html="htmlContent" />
+        <div class="content-inner">
+          <header class="content-meta">
+            <p v-if="breadcrumb" class="content-breadcrumb">{{ breadcrumb }}</p>
+            <h1 class="content-title">{{ note.title }}</h1>
+          </header>
+          <article class="markdown-body" v-html="htmlContent" />
+        </div>
       </template>
       <div v-else class="intro-panel">
-        <div class="intro-hero">
-          <p class="intro-eyebrow">Daily Notes — 你的日常知识记录系统</p>
-          <h1>欢迎来到 Daily Notes！</h1>
+        <section class="intro-hero">
+          <p class="intro-eyebrow">Daily Notes</p>
+          <h1>一处安静的 Markdown 知识库</h1>
           <p class="intro-description">
-            这是一个基于 Vue3 + TypeScript + Element Plus 构建的现代化个人笔记系统，专为喜欢在本地以 Markdown 管理知识的人设计。
+            用本地 Markdown 管理文章、学习记录和工程笔记。左侧选择文档，右侧自动生成大纲，阅读时保持轻盈、清晰和专注。
           </p>
-          <p class="intro-description">无需后端、无需数据库，一切从 Markdown 开始。</p>
-          <div class="intro-highlights">
-            <div class="intro-highlight">
-              <span class="intro-highlight-icon">📝</span>
-              <div>
-                <strong>Markdown 驱动</strong>
-                <p>只需在 <code>pages/</code> 目录中维护文件，前端自动加载、展示与生成大纲。</p>
-              </div>
-            </div>
-            <div class="intro-highlight">
-              <span class="intro-highlight-icon">🌲</span>
-              <div>
-                <strong>目录即结构</strong>
-                <p>以文件夹构建分类，左侧目录树与右侧大纲时刻陪伴。</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        </section>
 
         <div class="intro-grid">
           <section class="intro-card">
-            <h3><span>✨</span> 你可以用它做什么？</h3>
-            <ul>
-              <li>记录日常笔记、工作日志、学习资料；</li>
-              <li>构建自己的知识体系（前端 / 后端 / 运维 / 算法……）；</li>
-              <li>以文件夹的形式构建分类，页面自动读取结构；</li>
-              <li>展示 Markdown 内容、自动生成大纲、代码高亮；</li>
-              <li>切换深浅主题，让你的阅读更舒适；</li>
-              <li>将你的知识库持久保存到 Gitee 仓库中随时查看。</li>
-            </ul>
+            <h3>内容组织</h3>
+            <p>根据 <code>pages/</code> 目录自动生成树形导航，文件夹就是分类，文件名就是入口。</p>
           </section>
 
           <section class="intro-card">
-            <h3><span>🧭</span> 如何开始？</h3>
-            <ol>
-              <li>在 <code>pages/</code> 目录中添加或编辑 Markdown 文件；</li>
-              <li>使用左侧目录选择页面，右侧会自动生成大纲；</li>
-              <li>随时切换浅色 / 深色主题，保持舒适的阅读体验。</li>
-            </ol>
+            <h3>阅读体验</h3>
+            <p>Markdown、代码块、表格、图片和视频都按文章阅读场景优化，适合长期维护。</p>
           </section>
 
-          <section class="intro-card intro-tip-card">
-            <h3><span>💡</span> 最佳实践</h3>
-            <p>按照主题创建子文件夹，善用文件名排序，结构将始终清晰。</p>
-            <p>配合 Git / Gitee 同步仓库，让你的知识库随时随地可查阅。</p>
+          <section class="intro-card">
+            <h3>主题切换</h3>
+            <p>浅色是温和纸张质感，深色保留暖色调，夜间阅读也不会过分刺眼。</p>
           </section>
         </div>
       </div>
@@ -282,16 +305,20 @@ onBeforeUnmount(() => {
     >
       <img :src="lightboxSrc" alt="放大图片" @click.stop />
       <button class="image-lightbox__close" type="button" aria-label="关闭预览" @click.stop="closeLightbox">
-        Close
+        关闭
       </button>
+    </div>
+
+    <div v-if="copyToast" class="copy-toast" role="status" aria-live="polite">
+      {{ copyToast }}
     </div>
   </div>
 </template>
 
 <style scoped>
 .content-shell {
-  height: calc(100vh - var(--header-height) - 52px);
-  max-height: calc(100vh - var(--header-height) - 52px);
+  height: calc(100vh - var(--header-height) - 44px);
+  max-height: calc(100vh - var(--header-height) - 44px);
   display: flex;
   min-width: 0;
   width: 100%;
@@ -300,173 +327,152 @@ onBeforeUnmount(() => {
 .content-scroll {
   overflow-y: auto;
   width: 100%;
-  padding-right: 12px;
+  padding-right: 10px;
   height: 100%;
   min-width: 0;
 }
 
+.content-inner {
+  max-width: 850px;
+  margin: 0 auto;
+  padding: 10px clamp(4px, 2vw, 22px) 74px;
+}
+
 .content-meta {
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--divider-color);
 }
 
 .content-breadcrumb {
-  margin: 0;
+  margin: 0 0 10px;
   text-transform: uppercase;
   font-size: 12px;
-  color: var(--text-secondary);
-  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  letter-spacing: 0;
+  font-weight: 650;
 }
 
 .content-title {
-  margin: 10px 0 0;
-  font-size: 28px;
+  margin: 0;
+  font-size: clamp(30px, 4vw, 44px);
+  line-height: 1.16;
   color: var(--text-primary);
+  font-weight: 680;
+  letter-spacing: 0;
 }
 
 .markdown-body {
-  padding-bottom: 80px;
+  padding-bottom: 40px;
 }
 
-/* 视频样式：保证嵌入的视频自适应宽度并保持高度比例
-   使用 ::v-deep 作用于由 v-html 插入的元素（scoped 样式默认无法匹配 v-html 生成的节点） */
-.markdown-body ::v-deep video,
-.markdown-body ::v-deep source,
-.markdown-body ::v-deep p > video,
-.markdown-body ::v-deep figure video,
-.markdown-body ::v-deep iframe {
-  /* 强制视频/iframe 宽度占满父容器（中间内容区域） */
+.markdown-body :deep(video),
+.markdown-body :deep(source),
+.markdown-body :deep(p > video),
+.markdown-body :deep(figure video),
+.markdown-body :deep(iframe) {
   width: 100% !important;
   max-width: 100% !important;
   height: auto !important;
   display: block !important;
   box-sizing: border-box !important;
-  margin: 0 !important;
+  margin: 1.2em 0 !important;
 }
 
-.markdown-body ::v-deep video {
+.markdown-body :deep(video) {
   background: #000;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   overflow: hidden;
   object-fit: contain;
 }
 
 .intro-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-  padding-right: 12px;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: clamp(24px, 5vw, 56px) clamp(4px, 3vw, 28px) 72px;
 }
 
 .intro-hero {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 32px;
-  border: 1px dashed var(--panel-border);
-  border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, rgba(96, 165, 250, 0.18), rgba(34, 197, 94, 0.14));
+  max-width: 760px;
+  padding: 0 0 34px;
+  border-bottom: 1px solid var(--divider-color);
 }
 
 .intro-eyebrow {
-  margin: 0;
+  margin: 0 0 12px;
   color: var(--accent);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .intro-hero h1 {
   margin: 0;
-  font-size: 34px;
+  max-width: 680px;
+  font-size: clamp(36px, 6vw, 64px);
+  line-height: 1.05;
+  letter-spacing: 0;
+  color: var(--text-primary);
 }
 
 .intro-description {
-  margin: 0;
+  max-width: 680px;
+  margin: 20px 0 0;
   color: var(--text-secondary);
-}
-
-.intro-highlights {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-top: 12px;
-}
-
-.intro-highlight {
-  display: flex;
-  gap: 12px;
-  padding: 16px;
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid var(--panel-border);
-  flex: 1 1 260px;
-}
-
-.intro-highlight-icon {
-  font-size: 22px;
-}
-
-.intro-highlight strong {
-  display: block;
-  margin-bottom: 4px;
-}
-
-.intro-highlight p {
-  margin: 0;
-  color: var(--text-secondary);
+  font-size: 18px;
+  line-height: 1.75;
 }
 
 .intro-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 26px;
 }
 
 .intro-card {
   border: 1px solid var(--panel-border);
-  border-radius: var(--radius-lg);
-  padding: 24px;
-  background: var(--panel-bg);
-  box-shadow: var(--shadow-soft);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  background: color-mix(in srgb, var(--panel-bg) 72%, transparent);
 }
 
 .intro-card h3 {
-  margin-top: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 18px;
+  margin: 0 0 10px;
+  font-size: 16px;
+  color: var(--text-primary);
 }
 
-.intro-card ul,
-.intro-card ol {
-  margin: 16px 0 0;
-  padding-left: 18px;
+.intro-card p {
+  margin: 0;
   color: var(--text-secondary);
+  line-height: 1.7;
 }
 
-.intro-card li + li {
-  margin-top: 8px;
+.intro-card code {
+  background: var(--code-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 1px 5px;
+  color: var(--code-text-strong);
 }
 
-.intro-tip-card {
-  grid-column: span 2;
-}
-
-.markdown-body ::v-deep img {
+.markdown-body :deep(img) {
   cursor: zoom-in;
-  transition: transform 0.15s ease, box-shadow 0.2s ease;
+  transition: box-shadow 0.2s ease, filter 0.2s ease;
   border-radius: var(--radius-md);
+  border: 1px solid var(--panel-border);
+  background: var(--panel-muted);
 }
 
-.markdown-body ::v-deep img:hover {
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+.markdown-body :deep(img:hover) {
+  box-shadow: 0 14px 34px rgba(62, 49, 38, 0.16);
+  filter: saturate(1.02);
 }
 
 .image-lightbox {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.8);
+  background: rgba(38, 34, 29, 0.82);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -479,35 +485,35 @@ onBeforeUnmount(() => {
   max-height: 88vh;
   border-radius: var(--radius-lg);
   box-shadow: 0 16px 60px rgba(0, 0, 0, 0.35);
-  background: #0f172a;
+  background: #211d19;
 }
 
 .image-lightbox__close {
   position: absolute;
   top: 18px;
   right: 18px;
-  border: 1px solid var(--panel-border);
+  border: 1px solid rgba(255, 250, 242, 0.22);
   border-radius: 999px;
   padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  background: rgba(255, 250, 242, 0.1);
+  color: #fffaf2;
   cursor: pointer;
   font-size: 13px;
-  letter-spacing: 0.02em;
 }
 
-@media (max-width: 768px) {
-  .intro-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .intro-tip-card {
-    grid-column: span 1;
-  }
-
-  .intro-hero {
-    padding: 24px;
-  }
+.copy-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 2100;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: var(--panel-bg);
+  color: var(--text-primary);
+  box-shadow: 0 14px 34px rgba(62, 49, 38, 0.18);
+  font-size: 14px;
+  font-weight: 650;
 }
 
 @media (max-width: 900px) {
@@ -520,6 +526,10 @@ onBeforeUnmount(() => {
     height: auto;
     max-height: none;
   }
+
+  .intro-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 600px) {
@@ -527,8 +537,27 @@ onBeforeUnmount(() => {
     padding-right: 0;
   }
 
+  .content-inner {
+    padding: 2px 0 48px;
+  }
+
+  .content-meta {
+    margin-bottom: 22px;
+    padding-bottom: 18px;
+  }
+
   .intro-panel {
-    padding-right: 0;
+    padding: 22px 0 48px;
+  }
+
+  .intro-description {
+    font-size: 16px;
+  }
+
+  .copy-toast {
+    right: 50%;
+    bottom: 18px;
+    transform: translateX(50%);
   }
 }
 </style>

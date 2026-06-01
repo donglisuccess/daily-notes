@@ -17,8 +17,8 @@ const emit = defineEmits<{
         <IconMenu />
       </button>
       <button class="app-title" type="button" @click="emit('navigate-home')">
-        日常笔记
-        <span>Markdown 驱动的个人知识库</span>
+        Daily Notes
+        <span>Markdown 知识库</span>
       </button>
     </div>
     <ThemeToggle :theme="theme" @toggle="emit('toggle-theme')" />
@@ -30,10 +30,10 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 32px;
+  padding: 14px clamp(16px, 4vw, 40px);
   border-bottom: 1px solid var(--panel-border);
-  background: var(--panel-bg);
-  backdrop-filter: blur(12px);
+  background: color-mix(in srgb, var(--app-bg) 86%, transparent);
+  backdrop-filter: blur(18px);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -47,9 +47,9 @@ const emit = defineEmits<{
 }
 
 .menu-toggle {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--panel-border);
   background: var(--panel-bg);
   display: inline-flex;
@@ -57,21 +57,21 @@ const emit = defineEmits<{
   justify-content: center;
   color: var(--text-primary);
   cursor: pointer;
-  transition: border-color var(--transition-base), transform var(--transition-base);
+  transition: border-color var(--transition-base), background var(--transition-base);
 }
 
 .menu-toggle:hover {
-  border-color: var(--accent);
-  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--panel-border));
+  background: var(--accent-soft);
 }
 
 .app-title {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 650;
   color: var(--text-primary);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   padding: 0;
   background: none;
   border: none;
@@ -80,8 +80,9 @@ const emit = defineEmits<{
 }
 
 .app-title span {
-  font-size: 13px;
-  color: var(--text-secondary);
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
 }
 
 .app-title:focus-visible,
@@ -93,6 +94,28 @@ const emit = defineEmits<{
 @media (min-width: 900px) {
   .menu-toggle {
     display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .app-header {
+    padding: 10px 12px;
+  }
+
+  .header-left {
+    min-width: 0;
+  }
+
+  .app-title {
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  .app-title span {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 </style>

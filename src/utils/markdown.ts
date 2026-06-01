@@ -38,7 +38,6 @@ interface RenderResult {
   headings: OutlineHeading[];
 }
 
-// 渲染 Markdown 同时生成标题大纲信息
 export function renderMarkdown(source: string): RenderResult {
   const headings: OutlineHeading[] = [];
   const slugger = createSlugGenerator();
@@ -57,7 +56,6 @@ function createRenderer(slugger: (value: string) => string, headings: OutlineHea
     typographer: true
   });
 
-  // 将高亮器单独设置，使用实例的 utils.escapeHtml 避免深层路径导入
   md.options.highlight = function (str: string, lang: string) {
     if (lang && hljs.getLanguage(lang)) {
       try {
@@ -66,14 +64,13 @@ function createRenderer(slugger: (value: string) => string, headings: OutlineHea
         console.warn('highlight error', error);
       }
     }
-    // 使用实例上的工具函数进行 HTML 转义
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (md as any).utils?.escapeHtml ? (md as any).utils.escapeHtml(str) : str;
+
+    return md.utils.escapeHtml(str);
   };
 
   const defaultHeadingRule = md.renderer.rules.heading_open;
+  const defaultFenceRule = md.renderer.rules.fence;
 
-  // 在渲染 heading 标签时为其添加 id，方便左侧内容和右侧大纲联动
   md.renderer.rules.heading_open = (tokens, idx, options, env, self) => {
     const token = tokens[idx];
     const titleToken = tokens[idx + 1];
@@ -91,6 +88,25 @@ function createRenderer(slugger: (value: string) => string, headings: OutlineHea
       return defaultHeadingRule(tokens, idx, options, env, self);
     }
     return self.renderToken(tokens, idx, options);
+  };
+
+  md.renderer.rules.fence = (tokens, idx, options, env, self) => {
+    const token = tokens[idx];
+    const info = token.info ? token.info.trim() : '';
+    const lang = info ? info.split(/\s+/g)[0] : 'text';
+    const rendered = defaultFenceRule
+      ? defaultFenceRule(tokens, idx, options, env, self)
+      : `<pre><code>${md.utils.escapeHtml(token.content)}</code></pre>`;
+
+    return [
+      `<div class="code-block" data-code-lang="${md.utils.escapeHtml(lang)}">`,
+      '<div class="code-block__bar">',
+      `<span class="code-block__lang">${md.utils.escapeHtml(lang)}</span>`,
+      '<button class="code-copy" type="button" data-copy-code aria-label="复制代码">复制</button>',
+      '</div>',
+      rendered,
+      '</div>'
+    ].join('');
   };
 
   return md;

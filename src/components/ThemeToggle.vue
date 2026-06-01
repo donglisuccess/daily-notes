@@ -23,23 +23,38 @@ const label = computed(() => (props.theme === 'dark' ? '切换为浅色主题' :
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  min-height: 38px;
+  padding: 8px 13px;
   border: 1px solid var(--panel-border);
   border-radius: 999px;
   background: var(--panel-bg);
   color: var(--text-primary);
   cursor: pointer;
-  font-weight: 500;
-  transition: transform var(--transition-base), border-color var(--transition-base);
+  font-weight: 600;
+  font-size: 13px;
+  transition: background var(--transition-base), border-color var(--transition-base), color var(--transition-base);
 }
 
 .theme-toggle:hover {
-  border-color: var(--accent);
-  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--panel-border));
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .theme-toggle:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .theme-toggle {
+    width: 38px;
+    justify-content: center;
+    padding: 8px;
+  }
+
+  .theme-toggle span {
+    display: none;
+  }
 }
 </style>
