@@ -15,15 +15,21 @@ const emit = defineEmits<{
 const htmlContent = ref('');
 const headingsCache = ref<OutlineHeading[]>([]);
 const scrollRef = ref<HTMLElement>();
-const observer = ref<IntersectionObserver>();
 const lightboxSrc = ref<string | null>(null);
 const copyToast = ref('');
+const readingTimeLabel = ref('');
+const readingProgress = ref(0);
+const showBackToTop = ref(false);
 let hasImageListener = false;
+let hasScrollListener = false;
+let hasWindowScrollListener = false;
+let scrollFrame: number | undefined;
 let copyToastTimer: number | undefined;
 let mermaidBlockSequence = 0;
 let mermaidRenderTimer: number | undefined;
 let mermaidRenderToken = 0;
 let themeObserver: MutationObserver | undefined;
+let activeHeadingId: string | null = null;
 
 const breadcrumb = computed(() => {
   const segments = props.note?.segments;
@@ -33,19 +39,29 @@ const breadcrumb = computed(() => {
   return segments.slice(0, -1).join(' / ');
 });
 
+const readingProgressWidth = computed(() => `${Math.round(readingProgress.value * 100)}%`);
+const headingCountLabel = computed(() => `${headingsCache.value.length} 个小节`);
+
 watch(
   () => props.note?.content,
   async (value) => {
-    cleanupObserver();
     mermaidRenderToken += 1;
     lightboxSrc.value = null;
+    activeHeadingId = null;
+    readingProgress.value = 0;
+    showBackToTop.value = false;
     if (!value) {
       htmlContent.value = '';
       headingsCache.value = [];
+      readingTimeLabel.value = '';
       emit('update:headings', []);
       emit('active-heading-change', null);
+      await nextTick();
+      resetScrollPosition();
       return;
     }
+
+    readingTimeLabel.value = getReadingTimeLabel(value);
 
     let source = value;
     if (props.note?.path) {
@@ -58,48 +74,157 @@ watch(
     emit('update:headings', headings);
 
     await nextTick();
+    resetScrollPosition();
     ensureImageListener();
+    ensureScrollListener();
     await renderMermaidDiagrams();
-    setupObserver();
-    emit('active-heading-change', headings.length > 0 ? headings[0].id : null);
+    syncReadingState();
   },
   { immediate: true }
 );
 
-function setupObserver() {
+function resetScrollPosition() {
   const container = scrollRef.value;
-  if (!container || headingsCache.value.length === 0) {
-    return;
+  if (container) {
+    container.scrollTop = 0;
+  }
+  if (typeof window !== 'undefined') {
+    window.scrollTo({ top: 0 });
+  }
+}
+
+function ensureScrollListener() {
+  const container = scrollRef.value;
+  if (container && !hasScrollListener) {
+    container.addEventListener('scroll', handleContentScroll, { passive: true });
+    hasScrollListener = true;
   }
 
-  observer.value = new IntersectionObserver(
-    (entries) => {
-      const visible = entries
-        .filter((entry) => entry.isIntersecting)
-        .sort((a, b) => a.target.getBoundingClientRect().top - b.target.getBoundingClientRect().top);
-      if (visible.length > 0) {
-        emit('active-heading-change', visible[0].target.id);
-      }
-    },
-    {
-      root: container,
-      threshold: [0.1, 0.3, 1],
-      rootMargin: '0px 0px -60% 0px'
-    }
-  );
+  if (typeof window !== 'undefined' && !hasWindowScrollListener) {
+    window.addEventListener('scroll', handleContentScroll, { passive: true });
+    window.addEventListener('resize', handleContentScroll);
+    hasWindowScrollListener = true;
+  }
+}
 
-  headingsCache.value.forEach((heading) => {
-    const selector = `#${escapeCss(heading.id)}`;
-    const el = container.querySelector(selector);
-    if (el) {
-      observer.value?.observe(el);
-    }
+function cleanupScrollListener() {
+  if (hasScrollListener && scrollRef.value) {
+    scrollRef.value.removeEventListener('scroll', handleContentScroll);
+  }
+  hasScrollListener = false;
+  if (hasWindowScrollListener && typeof window !== 'undefined') {
+    window.removeEventListener('scroll', handleContentScroll);
+    window.removeEventListener('resize', handleContentScroll);
+  }
+  hasWindowScrollListener = false;
+  if (scrollFrame !== undefined && typeof window !== 'undefined') {
+    window.cancelAnimationFrame(scrollFrame);
+  }
+  scrollFrame = undefined;
+}
+
+function handleContentScroll() {
+  if (typeof window === 'undefined' || scrollFrame !== undefined) {
+    return;
+  }
+  scrollFrame = window.requestAnimationFrame(() => {
+    scrollFrame = undefined;
+    syncReadingState();
   });
 }
 
-function cleanupObserver() {
-  observer.value?.disconnect();
-  observer.value = undefined;
+function syncReadingState() {
+  updateReadingProgress();
+  updateActiveHeading();
+}
+
+function updateReadingProgress() {
+  const container = scrollRef.value;
+  if (!container || !props.note) {
+    readingProgress.value = 0;
+    showBackToTop.value = false;
+    return;
+  }
+
+  const maxScroll = getReadableMaxScroll(container);
+  const currentScroll = getReadableScrollTop(container);
+  readingProgress.value = maxScroll > 8 ? clamp(currentScroll / maxScroll) : 1;
+  showBackToTop.value = currentScroll > 260;
+}
+
+function updateActiveHeading() {
+  const container = scrollRef.value;
+  const headings = headingsCache.value;
+  if (!container || headings.length === 0) {
+    if (activeHeadingId !== null) {
+      activeHeadingId = null;
+      emit('active-heading-change', null);
+    }
+    return;
+  }
+
+  const containerScrollable = isContainerScrollable(container);
+  const containerTop = container.getBoundingClientRect().top;
+  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : container.clientHeight;
+  const activationTop = containerScrollable
+    ? containerTop + Math.min(container.clientHeight * 0.28, 180)
+    : Math.min(viewportHeight * 0.28, 180);
+  let current = headings[0].id;
+
+  for (const heading of headings) {
+    const el = container.querySelector<HTMLElement>(`#${escapeCss(heading.id)}`);
+    if (!el) {
+      continue;
+    }
+    if (el.getBoundingClientRect().top <= activationTop) {
+      current = heading.id;
+    } else {
+      break;
+    }
+  }
+
+  if (getReadableScrollTop(container) + getReadableViewportHeight(container) >= getReadableScrollHeight(container) - 12) {
+    current = headings[headings.length - 1].id;
+  }
+
+  if (current !== activeHeadingId) {
+    activeHeadingId = current;
+    emit('active-heading-change', current);
+  }
+}
+
+function isContainerScrollable(container: HTMLElement) {
+  return container.scrollHeight - container.clientHeight > 8;
+}
+
+function getReadableScrollTop(container: HTMLElement) {
+  if (isContainerScrollable(container) || typeof window === 'undefined') {
+    return container.scrollTop;
+  }
+  return window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+}
+
+function getReadableMaxScroll(container: HTMLElement) {
+  return getReadableScrollHeight(container) - getReadableViewportHeight(container);
+}
+
+function getReadableViewportHeight(container: HTMLElement) {
+  if (isContainerScrollable(container) || typeof window === 'undefined') {
+    return container.clientHeight;
+  }
+  return window.innerHeight;
+}
+
+function getReadableScrollHeight(container: HTMLElement) {
+  if (isContainerScrollable(container) || typeof document === 'undefined') {
+    return container.scrollHeight;
+  }
+  return Math.max(
+    document.documentElement.scrollHeight,
+    document.body.scrollHeight,
+    document.documentElement.offsetHeight,
+    document.body.offsetHeight
+  );
 }
 
 async function renderMermaidDiagrams() {
@@ -292,6 +417,29 @@ function resolveRelativeAsset(notePath: string, rawPath: string) {
   return resolveNoteAsset(notePath, rawPath);
 }
 
+function getReadingTimeLabel(source: string) {
+  const codeBlocks = source.match(/```[\s\S]*?```/g) ?? [];
+  const codeLineCount = codeBlocks.reduce((total, block) => {
+    const code = block.replace(/^```[^\r\n]*(?:\r?\n)?/, '').replace(/\r?\n```$/, '');
+    return total + code.split(/\r?\n/).filter((line) => line.trim()).length;
+  }, 0);
+  const text = source
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/!\[[^\]]*]\([^)]+\)/g, ' ')
+    .replace(/\[([^\]]+)]\([^)]+\)/g, '$1')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/[#>*_`~|{}()[\]-]/g, ' ');
+  const cjkCount = text.match(/[\u3400-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]/g)?.length ?? 0;
+  const latinText = text.replace(/[\u3400-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]/g, ' ');
+  const latinWordCount = latinText.match(/[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)*/g)?.length ?? 0;
+  const minutes = Math.max(1, Math.ceil(cjkCount / 300 + latinWordCount / 160 + codeLineCount / 16));
+  return `约 ${minutes} 分钟阅读`;
+}
+
+function clamp(value: number) {
+  return Math.min(1, Math.max(0, value));
+}
+
 function escapeCss(value: string) {
   if (typeof window !== 'undefined' && window.CSS?.escape) {
     return window.CSS.escape(value);
@@ -368,6 +516,18 @@ const closeLightbox = () => {
   lightboxSrc.value = null;
 };
 
+const handleBackToTop = () => {
+  const container = scrollRef.value;
+  if (!container) {
+    return;
+  }
+  if (isContainerScrollable(container) || typeof window === 'undefined') {
+    container.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
 const handleKeydown = (event: KeyboardEvent) => {
   if (event.key === 'Escape') {
     closeLightbox();
@@ -392,12 +552,13 @@ function cleanupImageListener() {
 
 onMounted(() => {
   ensureImageListener();
+  ensureScrollListener();
   setupThemeObserver();
   window.addEventListener('keydown', handleKeydown);
 });
 
 onBeforeUnmount(() => {
-  cleanupObserver();
+  cleanupScrollListener();
   cleanupImageListener();
   cleanupThemeObserver();
   window.clearTimeout(copyToastTimer);
@@ -407,12 +568,19 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="content-shell panel">
+    <div v-if="note" class="reading-progress" aria-hidden="true">
+      <span :style="{ width: readingProgressWidth }"></span>
+    </div>
     <div ref="scrollRef" class="content-scroll">
       <template v-if="note">
         <div class="content-inner">
           <header class="content-meta">
             <p v-if="breadcrumb" class="content-breadcrumb">{{ breadcrumb }}</p>
             <h1 class="content-title">{{ note.title }}</h1>
+            <div class="content-stats">
+              <span>{{ readingTimeLabel }}</span>
+              <span v-if="headingsCache.length">{{ headingCountLabel }}</span>
+            </div>
           </header>
           <article class="markdown-body" v-html="htmlContent" />
         </div>
@@ -462,6 +630,17 @@ onBeforeUnmount(() => {
     <div v-if="copyToast" class="copy-toast" role="status" aria-live="polite">
       {{ copyToast }}
     </div>
+
+    <button
+      v-if="showBackToTop"
+      class="back-top"
+      type="button"
+      aria-label="回到顶部"
+      title="回到顶部"
+      @click="handleBackToTop"
+    >
+      ↑
+    </button>
   </div>
 </template>
 
@@ -472,6 +651,27 @@ onBeforeUnmount(() => {
   display: flex;
   min-width: 0;
   width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.reading-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 2;
+  background: color-mix(in srgb, var(--panel-muted) 42%, transparent);
+}
+
+.reading-progress span {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 62%, var(--text-primary)));
+  transition: width 0.12s ease;
 }
 
 .content-scroll {
@@ -510,6 +710,32 @@ onBeforeUnmount(() => {
   color: var(--text-primary);
   font-weight: 680;
   letter-spacing: 0;
+}
+
+.content-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.content-stats span + span {
+  position: relative;
+}
+
+.content-stats span + span::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -8px;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: translateY(-50%);
 }
 
 .markdown-body {
@@ -666,6 +892,36 @@ onBeforeUnmount(() => {
   font-weight: 650;
 }
 
+.back-top {
+  position: absolute;
+  right: 22px;
+  bottom: 22px;
+  z-index: 3;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-bg) 92%, transparent);
+  color: var(--accent);
+  box-shadow: 0 14px 34px rgba(62, 49, 38, 0.18);
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  transition: background var(--transition-base), border-color var(--transition-base), transform var(--transition-base);
+}
+
+.back-top:hover {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--panel-border));
+  background: var(--accent-soft);
+  transform: translateY(-2px);
+}
+
+.back-top:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
 @media (max-width: 900px) {
   .content-shell {
     height: auto;
@@ -675,6 +931,12 @@ onBeforeUnmount(() => {
   .content-scroll {
     height: auto;
     max-height: none;
+  }
+
+  .back-top {
+    position: fixed;
+    right: 16px;
+    bottom: 18px;
   }
 
   .intro-grid {
@@ -689,6 +951,10 @@ onBeforeUnmount(() => {
 
   .content-inner {
     padding: 2px 0 48px;
+  }
+
+  .content-stats {
+    font-size: 12px;
   }
 
   .content-meta {
