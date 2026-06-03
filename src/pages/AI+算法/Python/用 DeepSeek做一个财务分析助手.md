@@ -1,5 +1,7 @@
 ## 一、最终目标是什么？
+
 我们最终要实现一个简单的财务分析器：
+
 ```shell
 读取财务数据
    ↓
@@ -11,7 +13,9 @@
    ↓
 生成财务分析报告
 ```
+
 类比前端：
+
 ```shell
 接口返回原始数据
    ↓
@@ -21,24 +25,36 @@
    ↓
 用户看到可读结论
 ```
+
 ## 二、阶段 1：先打通 DeepSeek / GPT API
+
 官方上，`oenAI` 现在推荐用 `Responses API`；`DeepSeek API` 兼容 `OpenAI` 的 `Chat Completions` 调用风格，也就是说你可以用类似的 `SDK` 思路去调它。
+
 ### 1、安装依赖
+
 在 `Jupyter` 里执行：
+
 ```python
 !pip install openai pandas
 ```
+
 ### 2、第一次调用 DeepSeek
+
 `DeepSeek` 当前 `API` 地址可以使用:
+
 ```python
 https://api.deepseek.com
 ```
+
 官方 `V4` 预览说明里提到，可以保持 `base_url` 不变，只更新模型名为 `deepseek-v4-pro` 或 `deepseek-v4-flash`。
 我们先用便宜、速度快的：
+
 ```shell
 deepseek-v4-flash
 ```
+
 适合学习、测试、普通分析。
+
 ```python
 from openai import OpenAI
 import os
@@ -64,7 +80,9 @@ response = deepseek_client.chat.completions.create(
 
 print(response.choices[0].message.content)
 ```
+
 你可以把这段理解成前端里的：
+
 ```javascript
 const res = await fetch('https://api.deepseek.com/chat/completions', {
   method: 'POST',
@@ -81,8 +99,11 @@ const res = await fetch('https://api.deepseek.com/chat/completions', {
   })
 })
 ```
+
 ## 三、先造一份财务数据
+
 我们先不用真实 `Excel`，先用一份模拟数据。
+
 ```python
 import pandas as pd
 
@@ -99,23 +120,34 @@ df = pd.DataFrame(data)
 
 df
 ```
+
 ![alt text](./images/deepseek/1.png)
+
 这就像前端拿到接口返回：
+
 ```javascript
 [
   { year: 2021, revenue: 1000, cost: 600, net_profit: 120 },
   { year: 2022, revenue: 1300, cost: 780, net_profit: 180 }
 ]
 ```
+
 `Pandas` 的 `DataFrame` 可以简单理解成 `Python` 里的“表格版数组”。
+
 ## 六、用 Python 计算财务指标
+
 记住一句话：
+
 > 财务指标必须用 Python 算，不要交给 DeepSeek 猜。
+
 ### 1、计算毛利率
+
 毛利率：
+
 ```python
 毛利率 = (营业收入 - 营业成本) / 营业收入
 ```
+
 ```python
 df["gross_profit"] = df["revenue"] - df["cost"]
 
@@ -125,21 +157,30 @@ df["gross_margin_pct"] = (
 
 df[["year", "revenue", "cost", "gross_profit", "gross_margin_pct"]]
 ```
+
 你会看到类似结果：
+
 | year | revenue | cost | gross_profit | gross_margin_pct |
 | ---: | ------: | ---: | -----------: | ---------------: |
 | 2021 |    1000 |  600 |          400 |            40.00 |
 | 2022 |    1300 |  780 |          520 |            40.00 |
 | 2023 |    1600 | 1000 |          600 |            37.50 |
 | 2024 |    1800 | 1260 |          540 |            30.00 |
+
 这里已经出现一个重要信号：
+
 > 营收在增长，但毛利率在下降。
+
 这就是财务分析的入口。
+
 ### 2、计算净利率
+
 净利率：
+
 ```shell
 净利率 = 净利润 / 营业收入
 ```
+
 ```python
 df["net_margin_pct"] = (
     df["net_profit"] / df["revenue"] * 100
@@ -147,12 +188,17 @@ df["net_margin_pct"] = (
 
 df[["year", "revenue", "net_profit", "net_margin_pct"]]
 ```
+
 ![alt text](./images/deepseek/2.png)
+
 ### 3、计算资产负债率
+
 资产负债率：
+
 ```shell
 资产负债率 = 总负债 / 总资产
 ```
+
 ```python
 df["debt_ratio_pct"] = (
     df["liabilities"] / df["assets"] * 100
@@ -160,13 +206,19 @@ df["debt_ratio_pct"] = (
 
 df[["year", "assets", "liabilities", "debt_ratio_pct"]]
 ```
+
 ![alt text](./images/deepseek/3.png)
+
 ### 4、计算营收增长率
+
 增长率：
+
 ```shell
 今年营收增长率 = (今年营收 - 去年营收) / 去年营收
 ```
+
 `Pandas` 里可以用 `pct_change()`：
+
 ```python
 df["revenue_growth_pct"] = (
     df["revenue"].pct_change() * 100
@@ -174,7 +226,9 @@ df["revenue_growth_pct"] = (
 
 df[["year", "revenue", "revenue_growth_pct"]]
 ```
+
 ### 5、计算净利润增长率
+
 ```python
 df["net_profit_growth_pct"] = (
     df["net_profit"].pct_change() * 100
@@ -182,12 +236,16 @@ df["net_profit_growth_pct"] = (
 
 df[["year", "net_profit", "net_profit_growth_pct"]]
 ```
+
 如果你看到 2024 年净利润增长率为负，就要敏感：
+
 ```shell
 营收增长，但净利润下降。
 ```
+
 这不是小问题。
 这说明公司可能存在：
+
 ```shell
 成本上升
 费用增加
@@ -195,14 +253,19 @@ df[["year", "net_profit", "net_profit_growth_pct"]]
 经营效率下降
 负债压力变大
 ```
+
 这才叫分析，不是简单说“营收增长，表现良好”。
+
 ## 七、把结果整理成 DeepSeek 能读懂的格式
+
 DeepSeek 不适合直接吃一堆乱数据。
 我们要整理成 Markdown 表格。
 你的 `Python` 环境中必须已经安装了 `tabulate` 库。因为 `Pandas` 的 `to_markdown()` 方法是基于这个第三方库实现的，如果没有安装，运行时会直接报错。
+
 ```shell
 pip install tabulate
 ```
+
 ```python
 analysis_df = df[[
     "year",
@@ -220,15 +283,21 @@ summary = analysis_df.to_markdown(index=False)
 
 print(summary)
 ```
+
 这一步非常重要。
 你不是在“随便写 `prompt`”，你是在给 DeepSeek 准备一份结构化上下文。
+
 ## 八、设计一个严谨的 Prompt
+
 小白常犯的错误是这样问：
+
 ```shell
 帮我分析一下这家公司财务情况。
 ```
+
 这个太粗糙。
 更好的写法：
+
 ```python
 prompt = f"""
 你是一名严谨的财务分析师。
@@ -257,10 +326,13 @@ prompt = f"""
 - 语言要适合财务小白阅读
 """
 ```
+
 这里的重点是最后几条限制。
 你要学会约束模型。
 大模型不是员工，它更像一个能力很强但容易自由发挥的实习生。你不给边界，它就可能乱发挥。
+
 ## 九、调用 DeepSeek 生成财务报告
+
 ```python
 response = deepseek_client.chat.completions.create(
     model="deepseek-v4-flash",
@@ -280,7 +352,9 @@ report = response.choices[0].message.content
 
 print(report)
 ```
+
 输出结果：
+
 ```shell
 以下是根据您提供的2021-2024年财务数据生成的财务分析报告，旨在以通俗语言说明公司经营状况。
 
@@ -346,15 +420,22 @@ print(report)
 
 **数据不足之处说明**：表格中未提供费用明细（销售、管理、财务费用）、现金流、资产构成等数据，因此无法进一步分析净利率下降的具体费用来源，也无法判断负债结构（如短期借款占比）。建议结合更详细的财报进行深入分析。
 ```
+
 到这里，你已经完成了第一个版本：
+
 ```shell
 Pandas 计算财务指标 + DeepSeek 生成分析报告
 ```
+
 这就是一个最小可用财务分析助手。
+
 ## 十、把代码封装成函数
+
 前端里你不会把所有逻辑堆在一个组件里。
 Python 也一样。
+
 ### 1、封装指标计算函数
+
 ```python
 def calculate_financial_metrics(df):
     df = df.copy()
@@ -383,7 +464,9 @@ def calculate_financial_metrics(df):
 
     return df
 ```
+
 ### 2、封装 Prompt 构造函数
+
 ```python
 def build_financial_prompt(df):
     analysis_df = df[[
@@ -429,7 +512,9 @@ def build_financial_prompt(df):
 
     return prompt
 ```
+
 ### 3、封装 DeepSeek 调用函数
+
 ```python
 def generate_report_with_deepseek(prompt, model="deepseek-v4-flash"):
     response = deepseek_client.chat.completions.create(
@@ -448,8 +533,11 @@ def generate_report_with_deepseek(prompt, model="deepseek-v4-flash"):
 
     return response.choices[0].message.content
 ```
+
 ## 十一、完整可运行版本
+
 下面是一份完整代码，你可以直接复制到 Jupyter。
+
 ```python
 import os
 import pandas as pd
@@ -587,19 +675,27 @@ report = generate_report_with_deepseek(prompt)
 
 print(report)
 ```
+
 ## 十二、你应该怎么理解这个项目？
+
 不要把它理解成：
+
 ```shell
 我用 DeepSeek 做了一个财务分析工具
 ```
+
 这个说法太虚。
 你应该理解成：
+
 ```shell
 我用 Python 完成财务数据计算，
 再把计算结果交给 DeepSeek 生成自然语言分析报告。
 ```
+
 这句话更专业，也更真实。
+
 ## 十三、这个项目的真正架构
+
 ```shell
 财务原始数据
     ↓
@@ -613,8 +709,10 @@ DeepSeek Prompt
     ↓
 财务分析报告
 ```
+
 你以后扩展功能，也是在这条链路上加东西。
 比如：
+
 ```shell
 Excel 文件读取
 PDF 财报解析
@@ -624,5 +722,6 @@ PDF 财报解析
 生成 Word 报告
 生成网页仪表盘
 ```
+
 但现在不要贪多。
 你是 Python 小白，第一阶段只要把这条链路跑通。

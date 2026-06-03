@@ -1,12 +1,16 @@
 ## 一、为什么要有终端工具？
+
 > 做一个“可被调用的智能体终端工具”（包含 **打开终端**、**关闭终端**、**输入指令并运行**、**拿到输出结果**），最大的价值在于它把智能体从“只会说”升级成“能对系统产生可验证的真实动作”，并将这些动作纳入了可控，可审计，可回放的流程中。
 
 **开发了一个智能体终端可以帮助我们做什么？**
 `LLM` 的强项是推理和生成，但很多任务最后都要落实成命令：`git`、`docker`、`kubectl`、`pnpm`、`python`、`curl`....，终端工具让智能体可以说完做完，并且拿到真实决策输出做下一步（而不是凭空猜结果）。
 
 ## 二、终端工具开发
+
 ### 2.1 `subprocess`
+
 #### 2.1.1 `subprocess.Popen`
+
 - **核心用途：**
   `Popen` 是 `subprocess` 模块的底层类，提供对子进程的完全控制。它允许实时与子进程交互（如读取输出流、写入输入流），并手动管理进程的启动和结束。
 
@@ -16,7 +20,8 @@
   - **手动管理：** 需要显式调用方法（如 `communicate()`、`poll()`）来获取结果或检查进程状态。
 
 - **示例代码：**
-```python                                                                                                                     
+
+```python
 import subprocess
 
 GIT_BASH = r"C:\Program Files\Git\bin\bash.exe"
@@ -26,13 +31,16 @@ for line in p.stdout:
     print(line.strip())
 p.wait()
 ```
+
 由于我是 `windows` 电脑，所以使用 `bash` 命令，如果是 `linux` 电脑，可以直接使用 `ls -al | grep test`。
+
 - **r:** `r` 的含义表示字符串是原始字符串，即不进行转义处理。
 - **GIT_BASH:** `GIT_BASH` 是 `git` 的 `bash` 终端路径。
 - **subprocess.Popen:** `subprocess.Popen` 是 `subprocess` 模块中的一个类，用于创建和管理子进程。
 - **[GIT_BASH, "-lc", "ls -al | grep test"]:** `[GIT_BASH, "-lc", "ls -al | grep test"]` 是传递给 `subprocess.Popen` 的参数，其中 `GIT_BASH` 是要执行的命令，`"-lc"` 是传递给 `GIT_BASH` 的参数，`"ls -al | grep test"` 是要执行的命令。
 
 #### 2.1.2 `subprocess.run`
+
 - **核心用途：**
   `subprocess.run` 是 `subprocess` 模块的一个高级函数，用于执行一个命令并等待其完成。它提供了一种更简洁的方式来启动子进程并获取其输出。
 
@@ -49,7 +57,9 @@ print(result.stdout)  # 直接访问输出
 ```
 
 ### 2.2 开发一个智能体终端工具
+
 #### 2.2.1 定义 `Mcp tools`
+
 ```python
 import subprocess
 from typing import Annotated
@@ -69,7 +79,9 @@ def run_shell_command(command: Annotated[str, Field(description="要执行的命
 if __name__ == "__main__":
     mcp.run(transport="stdio")
 ```
+
 **注意：**
+
 - **`stdout=subprocess.PIPE, stderr=subprocess.STDOUT`：** 将错误和输出都重定向到标准输出。
 - **`rstrip`：** 是去除字符串末尾的换行符。
 - **`Annotated`：** 是 `pydantic` 提供的一个类型注解，用于添加额外的元数据，如字段描述和示例值。
@@ -78,6 +90,7 @@ if __name__ == "__main__":
 - **`if __name__ == "__main__":`** 是 `Python` 的一个常见用法，用于判断当前模块是否被直接执行，而不是被导入。
 
 #### 2.2.2 封转 `mcp_client`
+
 ```python
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
@@ -96,6 +109,7 @@ async def create_mcp_client(name, params):
 ```
 
 #### 2.2.3 `mcp_client` 调用，将工具转化为 `langchain` 工具
+
 ```python
 from utils.mcp_client import create_mcp_client
 
@@ -111,6 +125,7 @@ async def get_stdio_shell_tools():
 ```
 
 #### 2.2.4 封装 `Agent` 并过滤消息
+
 ```python
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from langgraph.prebuilt import create_react_agent
@@ -164,12 +179,15 @@ if __name__ == "__main__":
 ```
 
 #### 2.2.5 测试
+
 ![alt text](./images/9-1.png)
 
 ![alt text](./images/9-2.png)
 
 ## 三、Windows终端控制
+
 ### 3.1 定义 `Mcp tools`
+
 ```python
 import subprocess
 import time
@@ -379,7 +397,9 @@ if __name__ == '__main__':
     # print(process)
     # run_powershell_script("Get-Location")
 ```
+
 ### 3.2 封转 `mcp_client`
+
 ```python
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
@@ -397,7 +417,8 @@ async def create_mcp_client(name, params):
     return client, tools
 ```
 
-### 3.3 将 `Mcp tools` 转化为 `Langchain` 识别的 `tools` 
+### 3.3 将 `Mcp tools` 转化为 `Langchain` 识别的 `tools`
+
 ```python
 from utils.mcp_client import create_mcp_client
 
@@ -413,6 +434,7 @@ async def get_stdio_powershell_tools():
 ```
 
 ### 3.4 在 `Agent` 中调用
+
 ```python
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from langgraph.prebuilt import create_react_agent
@@ -468,6 +490,7 @@ if __name__ == "__main__":
 ```
 
 ### 3.5 测试
+
 ```txt
 用户：你有哪些工具？
 AI:  我有以下工具可供使用：

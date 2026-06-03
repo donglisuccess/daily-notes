@@ -1,7 +1,9 @@
 ## 一、智能体开发流程
+
 > 智能体开发需要具备以下功能：①：具备调用大模型能力（包含提示词模板）②：具备大模型调用工具能力
 
 ### 1.1 初始化工具
+
 ```python
 from langchain_core.tools import tool
 from pydantic import BaseModel,Field
@@ -26,6 +28,7 @@ def create_calc_tools():
 ```
 
 ### 1.2 初始化模型
+
 ```python
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
@@ -39,6 +42,7 @@ llm = ChatOpenAI(
 ```
 
 ### 1.3 调用智能体
+
 ```python
 from langchain.agents import AgentType
 from langchain.agents.initialize import initialize_agent
@@ -87,10 +91,13 @@ print(resp)
 #> Finished chain.
 #{'input': [ChatMessage(content='你是一个数学专家, 你擅长数学计算领域的知识！', additional_kwargs={}, response_metadata={}, role='system'), ChatMessage(content='问题：100+100=？', additional_kwargs={}, response_metadata={}, role='human')], 'output': 200}
 ```
+
 > 这里由于initialize_agent方法在后续版本已经废弃，如果需要使用需要将langchain版本固定到0.3.25版本。verbose参数表示是否打印中间过程。
 
 ## 二、智能体关键知识点
+
 ### 2.1 AgentType
+
 > LangChain提供多种Agent类型，每种类型适用于不同的场景和需求。以下是几种主要Agent类型及其特点：
 
 |AgentType| 核心机制 | 适用场景 |优点|缺点|
@@ -103,7 +110,9 @@ print(resp)
 |STRUCTURED_CHAT|严格结构化输出|数据提取、表单填写|格式标准化、可控性强|灵活性低|
 
 ### 2.2 返回体结构化
+
 这里以**JsonOutputParser**做演示：
+
 ```python
 # 从langchain_core.output_parsers中引入JsonOutputParser库
 from langchain_core.output_parsers import JsonOutputParser
@@ -133,7 +142,9 @@ print(format_instructions)
 # "type": #"string"}}, "required": ["tool", "result", "args"]}
 # ```
 ```
+
 **完整的案例：**
+
 ```python
 from langchain_core.output_parsers import JsonOutputParser
 from pydantic import BaseModel, Field
@@ -205,7 +216,9 @@ print(resp)
 # \n```\n    \n    问题：\n    100+100=？\n    ', additional_kwargs={}, response_metadata={}, role='human')], 
 # 'output': {'tool': 'add', 'result': '200', 'args': '{"a": 100, "b": 100}'}}
 ```
+
 > 注意事项：这里需要将工具的return_direct设置为False，如果为True就不会走到格式化输出了。如下所示。
+
 ```python
 @tool(
     description="add two number",
@@ -217,14 +230,17 @@ def add(a, b):
 ```
 
 ### 2.3 LangChain内置工具
+
 - **Tool使用方法：** https://python.langchain.com/docs/integrations/tools/
 - **内置Tooltiks：** https://api.python.langchain.com/en/latest/community/agent_toolkits.html
 
 ### 2.4 Python REPL
-> 在 LangChain / Agent 体系中：Python REPL Tool = 一个让 Agent 能直接执行 Python 代码的小型解释器环境。你可以把它理解成：给 AI 一台 内置 Python 环境，AI 想计算、想写 Python、想运行代码，都可以在这个工具里执行就像你给 Agent 装了一个“小型 Jupyter Notebook”。
-- **官网：** https://python.langchain.com/docs/integrations/tools/python/
 
+> 在 LangChain / Agent 体系中：Python REPL Tool = 一个让 Agent 能直接执行 Python 代码的小型解释器环境。你可以把它理解成：给 AI 一台 内置 Python 环境，AI 想计算、想写 Python、想运行代码，都可以在这个工具里执行就像你给 Agent 装了一个“小型 Jupyter Notebook”。
+
+- **官网：** https://python.langchain.com/docs/integrations/tools/python/
 **实战：利用Python REPL开发一个企业官网**
+
 ```python
 from langchain.agents import AgentType
 from langchain_experimental.tools.python.tool import PythonREPLTool
@@ -275,22 +291,35 @@ prompt = prompt_template.format(
 resp = agent.invoke(prompt)
 print(resp)
 ```
+
 **中间过程输出：**
+
 - **第一步输出**
+
 ![alt text](./images/4-0.png)
+
 - **第二步输出**
+
 ![alt text](./images/4-1.png)
+
 - **第三步输出**
+
 ![alt text](./images/4-2.png)
+
 - **目标文件**
+
 ![alt text](./images/4-3.png)
 
 ## 三、langchain output_parser库
+
 > LangChain输出解析器（Output Parsers）是将大语言模型（LLM）的原始文本响应转换为结构化、可操作数据的关键组件。输出解析器通过提供格式化指令并解析模型输出，实现文本到结构化数据的高效转换。
 
 基础解析器处理最简单的数据格式转换：
+
 ### 3.1 StrOutputParser
+
 - **StrOutputParser：** 直接提取模型返回的原始文本，不做任何结构化处理。
+
 ```python
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -314,6 +343,7 @@ if __name__ == "__main__":
 ```
 
 ### 3.2 CommaSeparatedListOutputParser
+
 - **CommaSeparatedListOutputParser：** 将逗号分隔的文本转换为**Python**列表。例如，将"apples, bananas, oranges"解析为['apples', 'bananas', 'oranges']。
 
 ```python
@@ -346,6 +376,7 @@ print(resp)
 ### 3.3 BooleanOutputParser
 
 - **BooleanOutputParser：** 解析文本为布尔值（True/False）。模型输出必须是"yes"或"no"（不区分大小写），解析器会统一转为大写后判断。
+
 ```python
 from agent.common import llm
 from langchain_core.prompts import ChatPromptTemplate
@@ -379,6 +410,7 @@ print(resp)
 ### 3.4 SimpleJsonOutputParser
 
 - **SimpleJsonOutputParser：** 将文本简单处理后转换为JSON格式，通常用于模型已经正确输出JSON的情况。
+
 ```python
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import SimpleJsonOutputParser
@@ -411,6 +443,7 @@ print(type(resp))
 ### 3.5 DatetimeOutputParser
 
 - **DatetimeOutputParser：** 将文本解析为标准日期时间格式（"%Y-%m-%dT%H:%M:%S.%fZ"）。
+
 ```python
 from langchain.output_parsers import DatetimeOutputParser
 from langchain.prompts import ChatPromptTemplate
@@ -435,7 +468,9 @@ print(type(resp))
 ```
 
 ### 3.6 EnumOutputParser
+
 - **EnumOutputParser：** 将文本解析为预定义的枚举值，适用于需要严格限制输出选项的场景。
+
 ```python
 from enum import Enum
 from langchain.output_parsers import EnumOutputParser

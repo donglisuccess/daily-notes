@@ -47,6 +47,7 @@ src/pages/**/*.md  (Vite glob 懒加载)
 ### Markdown 渲染
 
 `src/utils/markdown.ts` — `markdown-it` 实例：
+
 - 注册语言：bash/css/diff/javascript/json/markdown/python/shell/typescript/xml/yaml
 - ` ```mermaid ` 代码块被标记为 `data-mermaid-block`，由前端 later 渲染
 - 所有代码块包装在 `data-code-lang` 的 `div` 中，右上角有"复制"按钮
@@ -55,12 +56,14 @@ src/pages/**/*.md  (Vite glob 懒加载)
 ### 目录树构建
 
 `src/utils/tree.ts` — `buildTree()` 将 `NoteFile[]` 转为 Element Plus `TreeNode[]`：
+
 - 按目录层级递归构建，文件夹排在文件前面
 - 同类型节点按中文 locale 排序
 
 ### 相关文章推荐算法
 
 `useNotes.ts` 中 `getRelatedNotes()` 按以下权重评分：
+
 - 共同目录层级 × 12
 - 同一文件夹 +48
 - 同一根分类 +10

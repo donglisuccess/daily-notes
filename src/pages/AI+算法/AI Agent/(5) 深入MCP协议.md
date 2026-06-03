@@ -1,41 +1,57 @@
 ## 一、MCP介绍
+
 ### 1.1 MCP是什么
+
 > 模型上下文协议(MCP ModelContextProtocol)正迅速成为AI领域的核心基础设施标准，它通过标准化大语言模型与外部工具的交互方式，解决了AI应用开发中的关键瓶颈，推动了智能体从实验室走向商业化的进程。这一由Anthropic于2024年11月开源的协议，已被OpenAI、阿里云、腾讯、字节跳动等全球科技巨头广泛采纳，形成了一场静默的AI革命。MCP的流行不仅源于其技术创新，更在于它满足了AI产业从单体智能向互联网络转变的迫切需求，为AI应用的规模化落地提供了关键支撑。
 
 ### 1.2 MCP的原理
+
 MCP的核心原理：
+
 ![alt text](./images/5-1.png)
 
 与上一张图异曲同工：
+
 ![alt text](./images/5-2.png)
 
 MCP 的核心原理是将互联网服务（高德、谷歌）或本地操作系统 API（文件系统、数据库、终端）封装成 AI 智能体能够理解和使用的 Tools 工具，让 AI 智能体能够自由地调用这些 Tools 工具实现复杂的业务逻辑和功能。
 
 ### 1.3 MCP为什么这么火？
+
 **解决了智能体开发过程中的关键效率问题**
+
 > MCP之所以迅速火爆，首先在于它解决了AI应用开发中的关键痛点。传统模式下，大模型与外部工具的集成需要为每个工具单独开发接口，形成了"M个智能体×N个工具"的复杂度。MCP通过标准化交互规则，将复杂的"M×N"集成简化为"M+N"模式，使开发者只需遵循协议标准，就能实现AI模型与各类工具的即插即用。这种标准化不仅降低了开发门槛，还提高了系统的可扩展性和互操作性。
 
 ### 1.4 MCP为什么普及得这么快？
+
 **巨头+开源社区的积极推动**
+
 > MCP的迅速普及得益于多方面的市场与生态因素。首先是行业巨头的积极推动，这使得MCP获得了强大的技术背书和资源支持。OpenAI于2025年3月27日宣布Agent SDK支持MCP，5月17日进一步测试ChatGPT接入，标志着这一全球AI领导者对MCP的认可。Anthropic CEO Mike Krieger对OpenAI的加入表示欢迎，称MCP已成为"蓬勃发展的开放标准"。其他巨头如阿里云、腾讯、字节跳动等也纷纷支持或接入MCP，形成行业共识。
 
 > 开源社区的活跃参与是MCP生态繁荣的另一关键因素。GitHub上MCP相关项目呈现爆发式增长，如awesome-mcp-servers（https://github.com/punkpeye/awesome-mcp-servers）获近5W Star，覆盖数据库、云存储、旅游等20+垂直领域。代表性项目包括Supabase MCP服务器(连接数据库)、AWS-S3 MCP服务器(云存储访问)、Airbnb MCP服务器(旅行规划)等，这些项目为开发者提供了丰富的工具选择，形成了强大的网络效应。
 
 ### 1.5 基于MCP的智能体架构
+
 ![alt text](./images/5-3.png)
 
 ## 二、高德MCP服务接入
+
 ### 2.1 MCP客户端开发
+
 过程分为三个小步骤：
+
 #### 2.1.1 安装依赖
+
 ```shell
 uv add langchain_mcp_adapters
 ```
 
 #### 2.1.2 获取高德应用key
+
 https://lbs.amap.com/api/mcp-server/create-project-and-key
 
 #### 2.1.3 开发高德mcp客户端
+
 ```python
 import asyncio
 import os
@@ -55,15 +71,19 @@ async def create_mcp_client():
     print(tools)
 asyncio.run(create_mcp_client())
 ```
+
 **输出结果:**
+
 ```shell
 [StructuredTool(name='maps_direction_bicycling', description='骑行路径规划用于规划骑行通勤方案，规划时会考虑天桥、单行线、封路等情况。最大支持 500km 的骑行路线规划', args_schema={'type': 'object', 'properties': {'origin': {'type': 'string', 'description': '出发点经纬度，坐标格式为：经度，纬度'}, 'destination': {'type': 'string', 'description': '目的地经纬度，坐标格式为：经度，纬度'}}, 'required': ['origin', 'destination']}, response_format='content_and_artifact', coroutine=<function convert_mcp_tool_to_langchain_tool.<locals>.call_tool at 0x00000274C9F52700>), StructuredTool(name='maps_direction_driving', description='驾车路径规划 API 可以根据用户起终点经纬度坐标规划以小客车、轿车通勤出行的方案，并且返回通勤方案的数据。', args_schema={'type': 'object', 'properties': {'origin': {'type': 'string', 'description': '出发点经纬度，坐标格式为：经度，纬度'}, 'destination': {'type': 'string', 'description': '目的地经纬度，坐标格式为：经度，纬度'}}, 'required': ['origin', 'destination']}, response_format='content_and_artifact', coroutine=<function convert_mcp_tool_to_langchain_tool.<locals>.call_tool at 0x00000274C9F52520>), StructuredTool(name='maps_direction_transit_integrated', description='根据用户起终点经纬度坐标规划综合各类公共（火车、公交、地铁）交通方式的通勤方案，并且返回通勤方案的数据，跨城场景下必须传起点城市与终点城市', args_schema={'type': 'object', 'properties': {'origin': {'type': 'string', 'description': '出发点经纬度，坐标格式为：经度，纬度'}, 'destination': {'type': 'string', 'description': '目的地经纬度，坐标格式为：经度，纬度'}, 'city': {'type': 'string', 'description': '公共交通规划起点城市'}, 'cityd': {'type': 'string', 'description': '公共交通规划终点城市'}}, 'required': ['origin', 'destination', 'city', 'cityd']}, response_format='content_and_artifact', coroutine=<function convert_mcp_tool_to_langchain_tool.<locals>.call_tool at 0x00000274C9F52A20>), StructuredTool(name='maps_direction_walking', description='根据输入起点终点经纬度坐标规划100km 以内的步行通勤方案，并且返回通勤方案的数据', args_schema={'type': 'object', 'properties': {'origin': {'type': 'string', 'description': '出发点经度，纬度，坐标格式为：经度，纬度'}, 'destination': {'type': 'string', 'description': '目的地经度，纬度，坐标格式为：经度，纬度'}}, 'required': ['origin', 'destination']}, response_format='content_and_artifact', coroutine=<function convert_mcp_tool_to_langchain_tool.<locals>.call_tool at 0x00000274C9F525C0>), StructuredTool(name='maps_distance', description='测量两个经纬度坐标之间的距离,支持驾车、步行以及球面距离测量', args_schema={'type': 'object', 'properties': {'origins': {'type': 'string', 'description': '起点经度，纬度，可以传多个坐标，使用竖线隔离，比如120,30|120,31，坐标格式为：经度，纬度'}, 'destination': {'type': 'string', 'description': '终点经度，纬度，坐标格式为：经度，纬度'}, 'type': {'type': 'string', 'description': '距离测量类型,1代表驾车距离测量，0代表直线距离测量，3步行距离测量'}}, 'required': ['origins', 'destination']}, response_format='content_and_artifact', coroutine=<function convert_mcp_tool_to_langchain_tool.<locals>.call_tool at 0x00000274C9F52660>), StructuredTool(name='maps_geo', description='将详细的结构化地址转换为经纬度坐标。支持对地标性名胜景区、建筑物名称解析为经纬度坐标', args_schema={'type': 'object', 'properties': {'address': {'type': 'string', 'description': '待解析的结构化地址信息'}, 'city': {'type': 'string', 'description': '指定查询的城市'}}, 'required': ['address']}, response_format='content_and_artifact', coroutine=<function convert_mcp_tool_to_langchain_tool.<locals>.call_tool at 0x00000274C9F52FC0>), StructuredTool(name='maps_regeocode', description='将一个高德经纬度坐标转换为行政区划地址信息', args_schema={'type': 'object', 'properties': {'location': {'type': 'string', 'description': '经纬度'}}, 'required': ['location']}, response_format='content_and_artifact', coroutine=<function convert_mcp_tool_to_langchain_tool.<locals>.call_tool at 0x00000274C9F53240>), StructuredTool(name='maps_ip_location', description='IP 定位根据用户输入的 IP 地址，定位 IP 的所在位置', args_schema={'type': 'object', 'properties': {'ip': {'type': 'string', 'description': 'IP地址'}}, 'required': ['ip']}, response_format='content_and_artifact', coroutine=<function convert_mcp_tool_to_langchain_tool.<locals>.call_tool at 0x00000274C9F52C00>), StructuredTool(name='maps_schema_personal_map', description='用于行程规划结果在高德地图展示。将行程规划位置点按照行程顺序填入lineList，返回结果为高德地图打开的URI链接，该结果不需总结，直接返回！', args_schema={'type': 'object', 'properties': {'orgName': {'type': 'string', 'description': '行程规划地图小程序名称'}, 'lineList': {'type': 'array', 'description': '行程列表', 'items': {'type': 'object', 'properties': {'title': {'type': 'string', 'description': '行程名称描述（按行程顺序）'}, 'pointInfoList': {'type': 'array', 'description': '行程目标位置点描述', 'items': {'type': 'object', 'properties': {'name': {'type': 'string', 'description': '行程目标位置点名称'}, 'lon': {'type': 'number', 'description': '行程目标位置点经度'}, 'lat': {'type': 'number', 'description': '行程目标位置点纬度'}, 'poiId': {'type': 'string', 'description': '行程目标位置点POIID'}}, 'required': ['name', 'lon', 'lat', 'poiId']}}}, 'required': ['title', 'pointInfoList']}}}, 'required': ['orgName', 'lineList']}, response_format='content_and_artifact', coroutine=<function convert_mcp_tool_to_langchain_tool.<locals>.call_tool at 0x00000274C9F532E0>), StructuredTool(name='maps_around_search', description='周边搜，根据用户传入关键词以及坐标location，搜索出radius半径范围的POI', args_schema={'type': 'object', 'properties': {'keywords': {'type': 'string', 'description': '搜索关键词'}, 'location': {'type': 'string', 'description': '中心点经度纬度'}, 'radius': {'type': 'string', 'description': '搜索半径'}}, 'required': ['keywords', 'location']}, response_format='content_and_artifact', coroutine=<function convert_mcp_tool_to_langchain_tool.<locals>.call_tool at 0x00000274C9F52F20>), StructuredTool(name='maps_search_detail', description='查询关键词搜或者周边搜获取到的POI ID的详细信息', args_schema={'type': 'object', 'properties': {'id': {'type': 'string', 'description': '关键词搜或者周边搜获取到的POI ID'}}, 'required': ['id']}, response_format='content_and_artifact', coroutine=<function convert_mcp_tool_to_langchain_tool.<locals>.call_tool at 0x00000274C9F52D40>), StructuredTool(name='maps_text_search', description='关键字搜索 API 根据用户输入的关键字进行 POI 搜索，并返回相关的信息', args_schema={'type': 'object', 'properties': {'keywords': {'type': 'string', 'description': '查询关键字'}, 'city': {'type': 'string', 'description': '查询城市'}, 'citylimit': {'type': 'boolean', 'default': False, 'description': '是否限制城市范围内搜索，默认不限制'}}, 'required': ['keywords']}, response_format='content_and_artifact', coroutine=<function convert_mcp_tool_to_langchain_tool.<locals>.call_tool at 0x00000274C9F531A0>), StructuredTool(name='maps_schema_navi', description=' Schema唤醒客户端-导航页面，用于根据用户输入终点信息，返回一个拼装好的客户端唤醒URI，用户点击该URI即可唤起对应的客户端APP。唤起客户端后，会自动跳转到导航页面。', args_schema={'type': 'object', 'properties': {'lon': {'type': 'string', 'description': '终点经度'}, 'lat': {'type': 'string', 'description': '终点纬度'}}, 'required': ['lon', 'lat']}, response_format='content_and_artifact', coroutine=<function convert_mcp_tool_to_langchain_tool.<locals>.call_tool at 0x00000274C9F52DE0>), StructuredTool(name='maps_schema_take_taxi', description='根据用户输入的起点和终点信息，返回一个拼装好的客户端唤醒URI，直接唤起高德地图进行打车。直接展示生成的链接，不需要总结', args_schema={'type': 'object', 'properties': {'slon': {'type': 'string', 'description': '起点经度'}, 'slat': {'type': 'string', 'description': '起点纬度'}, 'sname': {'type': 'string', 'description': '起点名称'}, 'dlon': {'type': 'string', 'description': '终点经度'}, 'dlat': {'type': 'string', 'description': '终点纬度'}, 'dname': {'type': 'string', 'description': '终点名称'}}, 'required': ['dlon', 'dlat', 'dname']}, response_format='content_and_artifact', coroutine=<function convert_mcp_tool_to_langchain_tool.<locals>.call_tool at 0x00000274C9F53600>), StructuredTool(name='maps_weather', description='根据城市名称或者标准adcode查询指定城市的天气', args_schema={'type': 'object', 'properties': {'city': {'type': 'string', 'description': '城市名称或者adcode'}}, 'required': ['city']}, response_format='content_and_artifact', coroutine=<function convert_mcp_tool_to_langchain_tool.<locals>.call_tool at 0x00000274C9F536A0>)]
 ```
 
 ### 2.2 创建智能体，集成MCP工具
+
 过程分为四个小步骤：
 
 #### 2.2.1 创建MCP Client并获取tools
+
 ```python
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
@@ -84,6 +104,7 @@ async def create_mcp_client():
 ```
 
 #### 2.2.2 创建智能体
+
 ```python
 from langchain.agents import AgentType, initialize_agent
 async def setup_agent():
@@ -101,6 +122,7 @@ async def setup_agent():
 ```
 
 #### 2.2.3 创建提示词
+
 ```python
 from langchain_core.prompts import PromptTemplate
 
@@ -127,6 +149,7 @@ prompt = prompt_template.format(input="""
 ```
 
 #### 2.2.4 运行智能体
+
 ```python
 import asyncio
 
@@ -143,6 +166,7 @@ if __name__ == "__main__":
 ```
 
 #### 2.2.5 完整代码
+
 ```python
 import os
 import asyncio
@@ -224,6 +248,7 @@ if __name__ == "__main__":
 ```
 
 #### 2.2.6 运行结果
+
 ```html
 <!DOCTYPE html>
 <html lang="zh">
@@ -469,22 +494,28 @@ if __name__ == "__main__":
 ```
 
 ### 2.3 能力扩展和优化
+
 > 目前的智能体只是可以执行高德的一些tools以及可以生成对应的html代码，但是无法将其保存到文件中，也就是说并没有文件处理操作，因此我们需要扩展智能体的能力，使其能够将生成的html代码保存到文件中，同时我们还需要对智能体进行优化，使其能够更好地处理各种情况，例如当智能体无法理解用户输入时，它应该能够给出友好的提示，而不是直接退出程序。
 
 #### 2.3.1 增加文件工具
+
 安装 **langchain_community：**
+
 ```shell
 uv add langchain_community
 ```
 
 #### 2.3.2 获取文件工具：
+
 ```python
 from langchain_community.agent_toolkits import FileManagementToolkit
 file_toolkit = FileManagementToolkit(root_dir="D:\\ai-agent\\ai-agent-test1")
 file_tools = file_toolkit.get_tools()
 print(file_tools)
 ```
+
 **输出结果：**
+
 ```python
 [   
     CopyFileTool(root_dir='D:\\ai-agent\\ai-agent-test1'), 
@@ -498,6 +529,7 @@ print(file_tools)
 ```
 
 #### 2.3.3 扩展智能体工具
+
 ```python
 agent = initialize_agent(
     tools=tools + file_tools,
@@ -508,6 +540,7 @@ agent = initialize_agent(
 ```
 
 #### 2.3.4 优化提示词
+
 ```python
 prompt = prompt_template.format(input="""
 - 我五月底端午节计划去杭州游玩4天。
@@ -518,7 +551,9 @@ prompt = prompt_template.format(input="""
 - 最后输出一个html文件，在D:\\ai-agent\\ai-agent-test1\\test.html
 """)
 ```
+
 这里出现一个小插曲，不知道是模型的问题，还是提示词的原因，总是生成不了文件。下面是经过优化后的代码，可以正常输出文件：
+
 ```python
 import os
 import asyncio
@@ -634,48 +669,61 @@ if __name__ == "__main__":
 ```
 
 ## 三、深入MCP通信方式
+
 MCP（Model Context Protocol）协议目前支持**三种主要通信方式**，分别是：
 
 ### 3.1 stdio（标准输入输出）
+
 - **工作原理：**
 通过本地进程的标准输入（stdin）和标准输出（stdout）进行通信。客户端以子进程的形式启动MCP服务器，双方通过管道交换JSON-RPC格式的消息，消息以换行符分隔。
+
 - **适用场景：**
-（1）本地进程间通信（如命令行工具、文件系统操作）。  
+（1）本地进程间通信（如命令行工具、文件系统操作）。
 （2）简单的批处理任务或工具调用。
+
 - **优点：**
 （1）实现简单，低延迟。
 （2）无需网络配置，适合本地开发。
+
 - **限制：**
 （1）仅限本地使用，不支持分布式部署。
 （2）服务端不能输出控制台日志（会污染协议流）。
 
 #### 3.1.1 实现基于stdio的mcp服务
+
 stdio模式mcp服务架构：
+
 ![alt text](./images/5-4.png)
 
 ### 3.2 SSE（Server-Sent Events）
+
 - **工作原理：**
 基于HTTP长连接实现服务器到客户端的单向消息推送。客户端通过GET /sse建立长连接，服务器通过SSE流发送JSON-RPC消息；客户端通过POST /message发送请求或响应。
+
 - **适用场景：**
 （1）远程服务调用（如云服务、多客户端监控）。
 （2）需要实时数据推送的场景（如对话式AI的流式输出）。
+
 - **优点：**
 （1）支持实时单向推送，适合流式交互。
+
 - **限制：**
 （1）已逐步被弃用（2025年3月后被Streamable HTTP取代）。
 （2）连接中断后无法恢复，需重新建立。
 （3）服务器需维持长连接，资源消耗较高。
 
-
 ### 3.3 Streamable HTTP（流式HTTP）
+
 - **工作原理：**
 2025年3月引入的新传输方式，替代了SSE。通过统一的/message端点实现双向通信，支持以下特性：
 （1）客户端通过HTTP POST发送请求（如工具调用）。
 （2）服务器可将响应升级为SSE流式传输（当需要时）。
 （3）支持无状态模式（Stateless Server），无需维持长连接。
+
 - **适用场景：**
 （1）高并发远程服务调用。
 （2）需要灵活流式响应的场景（如AI助手的动态输出）。
+
 - **优点：**
 （1）解决SSE的缺陷：支持连接恢复（无需重新开始）。无需服务器维持长连接，降低资源压力。统一端点（/message），简化接口设计。
 （2）兼容基础设施（如中间件、负载均衡）。
