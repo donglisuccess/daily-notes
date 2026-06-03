@@ -188,3 +188,90 @@ claude --version
 claude doctor
 ```
 官方 `setup` 文档也建议安装后运行 `claude doctor` 检查安装类型和版本。
+
+### 3、启动 Claude code
+在项目根目录执行：
+```bash
+claude
+```
+第一次会要求登录或配置账号。官方说明中，`Claude Code` 可通过 `Claude Pro` / `Max` / `Team` / `Enterprise`、`Claude Console` 账号或支持的云提供方访问。
+
+### 4、让它先看项目
+进入 `Claude Code` 后，输入：
+```txt
+请先阅读当前项目结构，不要修改任何文件。请重点查看 package.json、README、src 入口、路由、状态管理、接口请求封装、构建配置，并输出项目理解报告。
+```
+
+### 5、初始化 CLAUDE.md
+首次进入仓库，可以在 `Claude Code` 会话中输入：
+```bash
+/init
+```
+它会帮助生成一个 `starter CLAUDE.md`。这个文件后面非常重要，用来记录项目规则，比如：
+- 使用 `TypeScript`
+- 不允许引入新的 `UI` 库
+- 修改前必须先说明计划
+- 每次改动后必须运行 `npm run type-check`
+- 不允许修改 `.env.production`
+今天你只需要知道它的作用：让 `Claude Code` 每次进入项目都能先读项目规则。
+
+### 6、查看变更
+如果 `Claude Code` 修改了文件，立刻看 `diff`：
+```bash
+git diff
+```
+```bash
+git diff src/components/UserCard.tsx
+```
+
+### 7、回滚不满意的修改
+回滚单个文件：
+```bash
+git restore src/components/UserCard.tsx
+```
+
+### 8、让它继续修复
+如果构建失败：
+```bash
+npm run build
+```
+把错误交给 `Claude Code`：
+```txt
+刚才 npm run build 失败了。请你阅读终端报错，先解释失败原因，再给出最小修改方案。不要扩大修改范围。
+```
+如果类型检查失败：
+```txt
+npm run type-check
+```
+提示词：
+```txt
+请根据 type-check 报错修复问题。要求只修改必要文件，不要重构无关代码。修复后请说明改了什么、为什么这样改、如何验证。
+```
+## 六、实战案例完整演示
+需求
+你有一个 `React` + `TypeScript` + `Vite` 项目，想让 `Claude Code` 帮你完成第一步接手：
+```txt
+阅读项目结构，生成项目理解报告，不修改任何代码。
+```
+### 推荐提示词
+```txt
+请你作为前端工程协作助手，帮我阅读当前项目。
+
+要求：
+1. 不要修改任何文件；
+2. 不要执行 npm install；
+3. 优先阅读 package.json、README、vite.config.ts、tsconfig.json、src/main.tsx、src/App.tsx、src/router 或 routes、src/services 或 api；
+4. 如果是 Vue 项目，请改为阅读 main.ts、router、pinia/store、views、components；
+5. 输出项目理解报告。
+
+报告必须包含：
+1. 技术栈；
+2. 启动/构建/测试命令；
+3. 目录结构；
+4. 入口文件；
+5. 路由位置；
+6. 接口请求封装；
+7. 状态管理；
+8. 新人接手建议；
+9. 你不确定的地方。
+```
