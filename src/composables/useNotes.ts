@@ -1,4 +1,4 @@
-import type { LoadedNote, NoteFile, TreeNode } from '@/types/note';
+import type { LoadedNote, NoteFile, NoteLink, NoteNavigation, TreeNode } from '@/types/note';
 import { NOTE_ROUTE_PREFIX } from '@/router';
 import { buildTree } from '@/utils/tree';
 
@@ -70,13 +70,85 @@ export function useNotes() {
     return '';
   };
 
+  const getNoteNavigation = (routePath: string, relatedLimit = 3): NoteNavigation => {
+    const index = noteFiles.findIndex((note) => note.routePath === routePath);
+    if (index === -1) {
+      return {
+        previous: null,
+        next: null,
+        related: []
+      };
+    }
+
+    return {
+      previous: noteFiles[index - 1] ? toNoteLink(noteFiles[index - 1]) : null,
+      next: noteFiles[index + 1] ? toNoteLink(noteFiles[index + 1]) : null,
+      related: getRelatedNotes(noteFiles[index], relatedLimit)
+    };
+  };
+
   return {
     noteFiles,
     treeData,
     loadNote,
     isValidRoute,
     rememberRoute,
-    getSavedRoute
+    getSavedRoute,
+    getNoteNavigation
+  };
+}
+
+function getRelatedNotes(current: NoteFile, limit: number): NoteLink[] {
+  const currentIndex = noteFiles.findIndex((note) => note.routePath === current.routePath);
+  const currentParents = getParentSegments(current);
+
+  return noteFiles
+    .map((note, index) => {
+      if (note.routePath === current.routePath) {
+        return null;
+      }
+
+      const parents = getParentSegments(note);
+      const commonDepth = getCommonDepth(currentParents, parents);
+      const sameFolder = commonDepth === currentParents.length && commonDepth === parents.length;
+      const sameRoot = currentParents[0] && currentParents[0] === parents[0];
+      const nearbyScore = currentIndex >= 0 ? Math.max(0, 6 - Math.abs(index - currentIndex)) : 0;
+      const score = commonDepth * 12 + (sameFolder ? 48 : 0) + (sameRoot ? 10 : 0) + nearbyScore;
+
+      if (score <= 0) {
+        return null;
+      }
+
+      return {
+        note,
+        score
+      };
+    })
+    .filter((item): item is { note: NoteFile; score: number } => Boolean(item))
+    .sort((a, b) => b.score - a.score || a.note.path.localeCompare(b.note.path, 'zh-CN'))
+    .slice(0, limit)
+    .map(({ note }) => toNoteLink(note));
+}
+
+function getParentSegments(note: NoteFile): string[] {
+  return note.segments.slice(0, -1);
+}
+
+function getCommonDepth(left: string[], right: string[]): number {
+  const max = Math.min(left.length, right.length);
+  let depth = 0;
+  while (depth < max && left[depth] === right[depth]) {
+    depth += 1;
+  }
+  return depth;
+}
+
+function toNoteLink(note: NoteFile): NoteLink {
+  return {
+    path: note.path,
+    routePath: note.routePath,
+    segments: note.segments,
+    title: note.title
   };
 }
 

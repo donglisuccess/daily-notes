@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import mermaid from 'mermaid';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import type { LoadedNote, OutlineHeading } from '@/types/note';
+import type { LoadedNote, NoteLink, NoteNavigation, OutlineHeading } from '@/types/note';
 import { resolveNoteAsset } from '@/utils/assets';
 import { renderMarkdown } from '@/utils/markdown';
 
-const props = defineProps<{ note: LoadedNote | null }>();
+const props = defineProps<{
+  note: LoadedNote | null;
+  navigation: NoteNavigation | null;
+}>();
 
 const emit = defineEmits<{
   (e: 'update:headings', value: OutlineHeading[]): void;
   (e: 'active-heading-change', value: string | null): void;
+  (e: 'navigate-note', value: string): void;
 }>();
 
 const htmlContent = ref('');
@@ -41,6 +45,10 @@ const breadcrumb = computed(() => {
 
 const readingProgressWidth = computed(() => `${Math.round(readingProgress.value * 100)}%`);
 const headingCountLabel = computed(() => `${headingsCache.value.length} 个小节`);
+const relatedNotes = computed(() => props.navigation?.related ?? []);
+const hasArticleNavigation = computed(() =>
+  Boolean(props.navigation?.previous || props.navigation?.next || relatedNotes.value.length)
+);
 
 watch(
   () => props.note?.content,
@@ -417,6 +425,14 @@ function resolveRelativeAsset(notePath: string, rawPath: string) {
   return resolveNoteAsset(notePath, rawPath);
 }
 
+function getLinkBreadcrumb(note: NoteLink) {
+  return note.segments.slice(0, -1).join(' / ') || 'Daily Notes';
+}
+
+function handleNavigateNote(routePath: string) {
+  emit('navigate-note', routePath);
+}
+
 function getReadingTimeLabel(source: string) {
   const codeBlocks = source.match(/```[\s\S]*?```/g) ?? [];
   const codeLineCount = codeBlocks.reduce((total, block) => {
@@ -583,6 +599,54 @@ onBeforeUnmount(() => {
             </div>
           </header>
           <article class="markdown-body" v-html="htmlContent" />
+          <footer v-if="hasArticleNavigation" class="article-navigation" aria-label="文章导航">
+            <div
+              v-if="navigation?.previous || navigation?.next"
+              class="article-navigation__pair"
+            >
+              <button
+                v-if="navigation?.previous"
+                class="article-nav-link article-nav-link--previous"
+                type="button"
+                @click="handleNavigateNote(navigation.previous.routePath)"
+              >
+                <span class="article-nav-link__label">上一篇</span>
+                <strong>{{ navigation.previous.title }}</strong>
+                <span class="article-nav-link__meta">{{ getLinkBreadcrumb(navigation.previous) }}</span>
+              </button>
+
+              <button
+                v-if="navigation?.next"
+                class="article-nav-link article-nav-link--next"
+                type="button"
+                @click="handleNavigateNote(navigation.next.routePath)"
+              >
+                <span class="article-nav-link__label">下一篇</span>
+                <strong>{{ navigation.next.title }}</strong>
+                <span class="article-nav-link__meta">{{ getLinkBreadcrumb(navigation.next) }}</span>
+              </button>
+            </div>
+
+            <section v-if="relatedNotes.length" class="related-notes">
+              <div class="related-notes__header">
+                <span>相关文章</span>
+                <small>继续沿着这个主题读下去</small>
+              </div>
+
+              <div class="related-notes__grid">
+                <button
+                  v-for="related in relatedNotes"
+                  :key="related.routePath"
+                  class="related-note"
+                  type="button"
+                  @click="handleNavigateNote(related.routePath)"
+                >
+                  <span class="related-note__path">{{ getLinkBreadcrumb(related) }}</span>
+                  <strong>{{ related.title }}</strong>
+                </button>
+              </div>
+            </section>
+          </footer>
         </div>
       </template>
       <div v-else class="intro-panel">
@@ -740,6 +804,166 @@ onBeforeUnmount(() => {
 
 .markdown-body {
   padding-bottom: 40px;
+}
+
+.article-navigation {
+  margin-top: 42px;
+  padding-top: 26px;
+  border-top: 1px solid var(--divider-color);
+}
+
+.article-navigation__pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.article-nav-link,
+.related-note {
+  border: 1px solid var(--panel-border);
+  background: color-mix(in srgb, var(--panel-bg) 82%, var(--panel-muted));
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition:
+    background var(--transition-base),
+    border-color var(--transition-base),
+    transform var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+.article-nav-link {
+  min-height: 126px;
+  border-radius: var(--radius-md);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.article-nav-link::before {
+  position: absolute;
+  top: 18px;
+  color: var(--accent);
+  font-size: 20px;
+  line-height: 1;
+  opacity: 0.86;
+}
+
+.article-nav-link--previous {
+  padding-left: 42px;
+}
+
+.article-nav-link--previous::before {
+  content: '←';
+  left: 18px;
+}
+
+.article-nav-link--next {
+  padding-right: 42px;
+  text-align: right;
+}
+
+.article-nav-link--next::before {
+  content: '→';
+  right: 18px;
+}
+
+.article-nav-link:hover,
+.related-note:hover {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--panel-border));
+  background: color-mix(in srgb, var(--accent-soft) 42%, var(--panel-bg));
+  box-shadow: 0 14px 32px rgba(62, 49, 38, 0.11);
+  transform: translateY(-2px);
+}
+
+.article-nav-link:focus-visible,
+.related-note:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.article-nav-link__label,
+.article-nav-link__meta,
+.related-note__path {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.article-nav-link__label {
+  color: var(--accent);
+}
+
+.article-nav-link strong,
+.related-note strong {
+  color: var(--text-primary);
+  line-height: 1.42;
+}
+
+.article-nav-link strong {
+  display: block;
+  font-size: 17px;
+}
+
+.article-nav-link__meta,
+.related-note__path {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.related-notes {
+  margin-top: 26px;
+}
+
+.related-notes__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.related-notes__header span {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.related-notes__header small {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.related-notes__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.related-note {
+  min-height: 112px;
+  border-radius: var(--radius-md);
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.related-note strong {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 15px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .markdown-body :deep(video),
@@ -942,6 +1166,11 @@ onBeforeUnmount(() => {
   .intro-grid {
     grid-template-columns: 1fr;
   }
+
+  .article-navigation__pair,
+  .related-notes__grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 600px) {
@@ -960,6 +1189,30 @@ onBeforeUnmount(() => {
   .content-meta {
     margin-bottom: 22px;
     padding-bottom: 18px;
+  }
+
+  .article-navigation {
+    margin-top: 32px;
+    padding-top: 22px;
+  }
+
+  .article-nav-link {
+    min-height: 116px;
+    padding: 16px;
+  }
+
+  .article-nav-link--previous {
+    padding-left: 38px;
+  }
+
+  .article-nav-link--next {
+    padding-right: 38px;
+  }
+
+  .related-notes__header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
   }
 
   .intro-panel {

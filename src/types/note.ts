@@ -13,6 +13,19 @@ export interface LoadedNote extends NoteFile {
   content: string;
 }
 
+export interface NoteLink {
+  path: string;
+  routePath: string;
+  segments: string[];
+  title: string;
+}
+
+export interface NoteNavigation {
+  previous: NoteLink | null;
+  next: NoteLink | null;
+  related: NoteLink[];
+}
+
 export interface TreeNode {
   id: string;
   label: string;

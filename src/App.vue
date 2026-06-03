@@ -25,6 +25,9 @@ const isMobileNavOpen = ref(false);
 const currentPath = computed(() => (route.path.startsWith(NOTE_ROUTE_PREFIX) ? route.path : ''));
 let loadToken = 0;
 const showToc = computed(() => Boolean(currentNote.value));
+const noteNavigation = computed(() =>
+  currentNote.value ? notes.getNoteNavigation(currentNote.value.routePath) : null
+);
 
 watch(
   () => currentPath.value,
@@ -123,8 +126,10 @@ const handleNavigateHome = () => {
 
       <ContentViewer
         :note="currentNote"
+        :navigation="noteNavigation"
         @update:headings="handleHeadingsUpdate"
         @active-heading-change="handleActiveHeading"
+        @navigate-note="handleSelectNote"
       />
 
       <TocSidebar
