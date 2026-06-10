@@ -94,6 +94,38 @@ function handleSearchInput() {
   activeIndex.value = -1;
 }
 
+function handleInputKeydown(event: KeyboardEvent) {
+  switch (event.key) {
+    case 'Escape':
+      event.stopPropagation();
+      hideSearch();
+      break;
+    case 'ArrowDown':
+      event.stopPropagation();
+      event.preventDefault();
+      activeIndex.value = Math.min(activeIndex.value + 1, filteredNotes.value.length - 1);
+      break;
+    case 'ArrowUp':
+      event.stopPropagation();
+      event.preventDefault();
+      activeIndex.value = Math.max(activeIndex.value - 1, -1);
+      break;
+    case 'Enter':
+      if (activeIndex.value >= 0) {
+        event.stopPropagation();
+        event.preventDefault();
+        const selected = filteredNotes.value[activeIndex.value];
+        if (selected) {
+          router.push(selected.routePath);
+          hideSearch();
+        }
+      }
+      break;
+    default:
+      event.stopPropagation();
+  }
+}
+
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown);
 });
@@ -128,8 +160,9 @@ onBeforeUnmount(() => {
             type="search"
             placeholder="搜索文章…"
             autocomplete="off"
+            @focus="showSearch"
             @input="handleSearchInput"
-            @keydown.stop
+            @keydown="handleInputKeydown"
           />
           <kbd class="search-kbd">⌘K</kbd>
         </div>
