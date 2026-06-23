@@ -173,36 +173,54 @@ test -n "$GITHUB_TOKEN" && echo "GITHUB_TOKEN exists" || echo "GITHUB_TOKEN miss
 
 当用户提出新增、修改、删除、优化文章或其他代码变更时，严格按以下步骤执行：
 
-1. **拉取最新代码**：从 main 分支拉取最新代码
+1. **检查工作区状态**：
+   ```bash
+   git status
+   ```
+2. **拉取最新代码**：从 main 分支拉取最新代码
    ```bash
    git checkout main && git pull origin main
    ```
-2. **创建新分支**：按[分支命名规范](#分支命名规范)创建新分支
-3. **完成修改**：只修改目标文件，不修改其他文件
-4. **查看 diff**：展示修改内容供用户确认
+3. **创建新分支**：按[分支命名规范](#分支命名规范)创建新分支
+4. **完成用户要求的修改**：只修改目标文件，不修改其他文件
+5. **查看 git status 和 git diff**：展示修改内容供用户确认
    ```bash
+   git status
    git diff
    ```
-5. **提交并推送**：
+6. **执行必要的检查命令**：
+   ```bash
+   pnpm type-check
+   ```
+   如修改涉及构建相关内容，还需运行 `pnpm build`。
+7. **git add**：
    ```bash
    git add <修改的文件>
+   ```
+8. **git commit**：
+   ```bash
    git commit -m "<type>: <description>"
+   ```
+9. **git push**：
+   ```bash
    git push origin <branch-name>
    ```
-6. **创建 PR**（当 `GITHUB_TOKEN` 环境变量存在时）：通过 GitHub REST API 创建 Pull Request
+10. **创建 PR**（当 `GITHUB_TOKEN` 环境变量存在时）：通过 GitHub REST API 创建 Pull Request
 
-   ```bash
-   curl -s -X POST "https://api.github.com/repos/donglisuccess/daily-notes/pulls" \
-     -H "Accept: application/vnd.github+json" \
-     -H "Authorization: Bearer $GITHUB_TOKEN" \
-     -H "X-GitHub-Api-Version: 2022-11-28" \
-     -d '{
-       "title": "<PR title>",
-       "head": "<branch-name>",
-       "base": "main",
-       "body": "<PR description>"
-     }'
-   ```
+    ```bash
+    curl -s -X POST "https://api.github.com/repos/donglisuccess/daily-notes/pulls" \
+      -H "Accept: application/vnd.github+json" \
+      -H "Authorization: Bearer $GITHUB_TOKEN" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      -d '{
+        "title": "<PR title>",
+        "head": "<branch-name>",
+        "base": "main",
+        "body": "<PR description>"
+      }'
+    ```
+11. **发送钉钉通知**：PR 创建成功后，按[钉钉通知规范](#钉钉通知规范)发送通知
+12. **输出最终总结**：按[最终总结格式](#最终总结格式)输出完整结果
 
 ### 分支命名规范
 
@@ -260,15 +278,92 @@ PR body 至少包含：
 - [ ] 已成功 push
 ```
 
-### 创建 PR 后必须输出
+### 钉钉通知规范
 
-任务完成后，必须输出以下信息：
+PR 创建成功后，自动调用 `scripts/notify-dingtalk.sh` 发送钉钉任务完成通知。
 
-- **修改的文件**：列出所有修改的文件路径
-- **分支名**：`<branch-name>`
-- **Commit Hash**：`<commit-hash>`
-- **Push 状态**：成功 / 失败
-- **PR 地址**：PR 链接（已创建时）或 PR 创建链接（未创建时提供 GitHub PR 创建 URL）
+#### 触发条件
+
+只有**全部满足**以下条件时，才发送钉钉任务完成通知：
+
+1. commit 成功
+2. push 成功
+3. PR 创建成功
+4. 已经拿到真实 PR URL（GitHub Pull Request URL，非 pull/new 临时链接）
+5. 项目中存在 `scripts/notify-dingtalk.sh`
+6. 环境变量 `DINGTALK_WEBHOOK` 存在
+7. 环境变量 `DINGTALK_SECRET` 存在
+
+如果 PR 创建失败，不发送"任务完成"通知。
+
+如果钉钉通知失败，不能影响 commit、push、PR 主流程，只需要在最终总结中标记：**钉钉通知：失败**。
+
+如果钉钉通知未配置（缺少 webhook、secret 或脚本文件），最终总结中标记：**钉钉通知：未配置**。
+
+#### 调用方式
+
+PR 创建成功后，调用：
+
+```bash
+./scripts/notify-dingtalk.sh \
+  "Claude Code 任务完成" \
+  "daily-notes" \
+  "<branch-name>" \
+  "<commit-hash>" \
+  "成功" \
+  "<pr-url>" \
+  "- <modified-file-1>
+- <modified-file-2>"
+```
+
+#### 通知内容必须包含
+
+钉钉消息必须包含以下信息：
+
+1. 项目名称（`daily-notes`）
+2. 分支名
+3. Commit Hash
+4. Push 状态
+5. PR 地址（必须使用真实 GitHub PR URL，不要使用 pull/new 临时链接）
+6. 修改文件列表
+
+#### 环境变量检查方式
+
+可以用以下方式判断环境变量是否存在，**禁止使用 `echo` 打印变量值**：
+
+```bash
+test -n "$GITHUB_TOKEN" && echo "GITHUB_TOKEN exists" || echo "GITHUB_TOKEN missing"
+test -n "$DINGTALK_WEBHOOK" && echo "DINGTALK_WEBHOOK exists" || echo "DINGTALK_WEBHOOK missing"
+test -n "$DINGTALK_SECRET" && echo "DINGTALK_SECRET exists" || echo "DINGTALK_SECRET missing"
+```
+
+禁止使用以下命令（会泄露 token/secret 明文）：
+
+```bash
+echo $GITHUB_TOKEN
+echo $DINGTALK_WEBHOOK
+echo $DINGTALK_SECRET
+```
+
+#### 安全要求
+
+钉钉通知相关的安全要求与 [Token 安全要求](#token-安全要求) 一致，并额外禁止：
+
+- 禁止在任何输出中打印 `DINGTALK_WEBHOOK`、`DINGTALK_SECRET` 明文
+- 禁止把 `DINGTALK_WEBHOOK`、`DINGTALK_SECRET` 写入：`CLAUDE.md`、`README.md`、Markdown 文章、Git commit、PR body、日志文件
+
+### 最终总结格式
+
+标准 PR 流程完成后，最终必须以表格形式输出以下内容：
+
+| 项目 | 内容 |
+|---|---|
+| 修改文件 | xxx |
+| 分支名 | xxx |
+| Commit Hash | xxx |
+| Push 状态 | 成功 / 失败 |
+| PR 地址 | xxx（真实 PR URL） |
+| 钉钉通知 | 成功 / 失败 / 未配置 |
 
 ### 异常处理
 
