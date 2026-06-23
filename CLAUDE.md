@@ -139,3 +139,77 @@ pnpm build
 ```
 
 确认构建成功。
+
+## 文章修改工作流
+
+### 标准流程
+
+当用户提出新增、修改、删除、优化文章时，严格按以下步骤执行：
+
+1. **拉取最新代码**：从 main 分支拉取最新代码
+   ```bash
+   git checkout main && git pull origin main
+   ```
+2. **创建新分支**：按分支命名规范创建新分支
+3. **完成修改**：只修改目标文件，不修改其他文件
+4. **查看 diff**：展示修改内容供用户确认
+   ```bash
+   git diff
+   ```
+5. **提交并推送**：
+   ```bash
+   git add <修改的文件>
+   git commit -m "<type>: <description>"
+   git push origin <branch-name>
+   ```
+6. **创建 PR**（当 `GITHUB_TOKEN` 环境变量存在时）：通过 `gh pr create` 创建 Pull Request
+
+### 分支命名规范
+
+| 前缀 | 用途 | 示例 |
+|------|------|------|
+| `docs/` | 文章新增、修改、删除、优化 | `docs/add-react-note` |
+| `feature/` | 新功能开发 | `feature/add-search` |
+| `fix/` | Bug 修复 | `fix/sidebar-overflow` |
+
+### Commit Message 规范
+
+遵循简洁的 `<type>: <description>` 格式：
+
+| type | 用途 |
+|------|------|
+| `docs` | 文章相关变更（新增、修改、删除、优化） |
+| `feat` | 新功能 |
+| `fix` | Bug 修复 |
+| `chore` | 构建、依赖、配置等杂项 |
+
+示例：
+```
+docs: add React best practices note
+feat: add full-text search
+fix: fix sidebar collapse animation
+chore: update Element Plus to 2.x
+```
+
+### 安全边界
+
+以下操作**必须禁止或事先询问用户**，不得自行执行：
+
+| 禁止/询问操作 | 策略 |
+|---------------|------|
+| `git reset --hard` | 禁止 |
+| `git clean -fd` | 禁止 |
+| `git push --force` / `--force-with-lease` | 禁止 |
+| `sudo` 命令 | 禁止 |
+| `rm -rf` 递归删除 | 询问确认 |
+| 修改 `.env` / `.env.local` | 询问确认 |
+| 修改系统目录（`/etc`、`/usr` 等） | 禁止 |
+
+### 完成输出
+
+每次任务完成后，必须输出以下信息：
+
+- **修改的文件**：列出所有修改的文件路径
+- **分支名**：`<branch-name>`
+- **Commit Hash**：`<commit-hash>`
+- **PR 地址**：PR 链接（已创建时）或 PR 创建链接（未创建时提供 GitHub PR 创建 URL）
