@@ -139,3 +139,264 @@ pnpm build
 ```
 
 确认构建成功。
+
+## GitHub PR 创建规范
+
+本项目默认不依赖 `gh CLI` 创建 PR。当用户要求"提交 PR""走 PR 流程""提交到 GitHub""创建 Pull Request"时，默认使用：
+
+```text
+SSH push + GITHUB_TOKEN + GitHub REST API 创建 PR
+```
+
+其中：
+
+- 代码 push 走 Git SSH
+- PR 创建走 GitHub REST API
+- 不要尝试安装 `gh CLI`
+- 不要要求用户使用 `gh auth login`
+- 不要把 token 打印出来
+- 不要把 token 写入项目文件、Markdown、日志、commit 或 PR body
+
+### 前置条件
+
+服务器环境变量中必须存在 `GITHUB_TOKEN`。
+
+检查方式：
+
+```bash
+test -n "$GITHUB_TOKEN" && echo "GITHUB_TOKEN exists" || echo "GITHUB_TOKEN missing"
+```
+
+禁止使用 `echo $GITHUB_TOKEN`，因为这会泄露 token 明文。
+
+### 标准流程
+
+当用户提出新增、修改、删除、优化文章或其他代码变更时，严格按以下步骤执行：
+
+1. **检查工作区状态**：
+   ```bash
+   git status
+   ```
+2. **拉取最新代码**：从 main 分支拉取最新代码
+   ```bash
+   git checkout main && git pull origin main
+   ```
+3. **创建新分支**：按[分支命名规范](#分支命名规范)创建新分支
+4. **完成用户要求的修改**：只修改目标文件，不修改其他文件
+5. **查看 git status 和 git diff**：展示修改内容供用户确认
+   ```bash
+   git status
+   git diff
+   ```
+6. **执行必要的检查命令**：
+   ```bash
+   pnpm type-check
+   ```
+   如修改涉及构建相关内容，还需运行 `pnpm build`。
+7. **git add**：
+   ```bash
+   git add <修改的文件>
+   ```
+8. **git commit**：
+   ```bash
+   git commit -m "<type>: <description>"
+   ```
+9. **git push**：
+   ```bash
+   git push origin <branch-name>
+   ```
+10. **创建 PR**（当 `GITHUB_TOKEN` 环境变量存在时）：通过 GitHub REST API 创建 Pull Request
+
+    ```bash
+    curl -s -X POST "https://api.github.com/repos/donglisuccess/daily-notes/pulls" \
+      -H "Accept: application/vnd.github+json" \
+      -H "Authorization: Bearer $GITHUB_TOKEN" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      -d '{
+        "title": "<PR title>",
+        "head": "<branch-name>",
+        "base": "main",
+        "body": "<PR description>"
+      }'
+    ```
+11. **发送钉钉通知**：PR 创建成功后，按[钉钉通知规范](#钉钉通知规范)发送通知
+12. **输出最终总结**：按[最终总结格式](#最终总结格式)输出完整结果
+
+### 分支命名规范
+
+| 前缀 | 用途 | 示例 |
+|------|------|------|
+| `docs/` | 文章新增、修改、删除、优化 | `docs/add-react-note` |
+| `feature/` | 新功能开发 | `feature/add-search` |
+| `fix/` | Bug 修复 | `fix/sidebar-overflow` |
+| `chore/` | 构建、依赖、配置等杂项 | `chore/update-deps` |
+
+### Commit Message 规范
+
+遵循简洁的 `<type>: <description>` 格式：
+
+| type | 用途 |
+|------|------|
+| `docs` | 文章相关变更（新增、修改、删除、优化） |
+| `feat` | 新功能 |
+| `fix` | Bug 修复 |
+| `chore` | 构建、依赖、配置等杂项 |
+
+示例：
+```
+docs: add React best practices note
+feat: add full-text search
+fix: fix sidebar collapse animation
+chore: update Element Plus to 2.x
+```
+
+### PR 标题与 Body 规范
+
+PR title 应简洁描述本次改动，与 commit message 格式一致：
+
+```
+docs: add React best practices note
+feat: add full-text search
+```
+
+PR body 至少包含：
+
+```markdown
+## Summary
+
+- 本次修改了什么
+- 为什么修改
+
+## Changes
+
+- 修改文件 1
+- 修改文件 2
+
+## Check
+
+- [ ] 已查看 git diff
+- [ ] 已成功 push
+```
+
+### 钉钉通知规范
+
+PR 创建成功后，自动调用 `scripts/notify-dingtalk.sh` 发送钉钉任务完成通知。
+
+#### 触发条件
+
+只有**全部满足**以下条件时，才发送钉钉任务完成通知：
+
+1. commit 成功
+2. push 成功
+3. PR 创建成功
+4. 已经拿到真实 PR URL（GitHub Pull Request URL，非 pull/new 临时链接）
+5. 项目中存在 `scripts/notify-dingtalk.sh`
+6. 环境变量 `DINGTALK_WEBHOOK` 存在
+7. 环境变量 `DINGTALK_SECRET` 存在
+
+如果 PR 创建失败，不发送"任务完成"通知。
+
+如果钉钉通知失败，不能影响 commit、push、PR 主流程，只需要在最终总结中标记：**钉钉通知：失败**。
+
+如果钉钉通知未配置（缺少 webhook、secret 或脚本文件），最终总结中标记：**钉钉通知：未配置**。
+
+#### 调用方式
+
+PR 创建成功后，调用：
+
+```bash
+./scripts/notify-dingtalk.sh \
+  "Claude Code 任务完成" \
+  "daily-notes" \
+  "<branch-name>" \
+  "<commit-hash>" \
+  "成功" \
+  "<pr-url>" \
+  "- <modified-file-1>
+- <modified-file-2>"
+```
+
+#### 通知内容必须包含
+
+钉钉消息必须包含以下信息：
+
+1. 项目名称（`daily-notes`）
+2. 分支名
+3. Commit Hash
+4. Push 状态
+5. PR 地址（必须使用真实 GitHub PR URL，不要使用 pull/new 临时链接）
+6. 修改文件列表
+
+#### 环境变量检查方式
+
+可以用以下方式判断环境变量是否存在，**禁止使用 `echo` 打印变量值**：
+
+```bash
+test -n "$GITHUB_TOKEN" && echo "GITHUB_TOKEN exists" || echo "GITHUB_TOKEN missing"
+test -n "$DINGTALK_WEBHOOK" && echo "DINGTALK_WEBHOOK exists" || echo "DINGTALK_WEBHOOK missing"
+test -n "$DINGTALK_SECRET" && echo "DINGTALK_SECRET exists" || echo "DINGTALK_SECRET missing"
+```
+
+禁止使用以下命令（会泄露 token/secret 明文）：
+
+```bash
+echo $GITHUB_TOKEN
+echo $DINGTALK_WEBHOOK
+echo $DINGTALK_SECRET
+```
+
+#### 安全要求
+
+钉钉通知相关的安全要求与 [Token 安全要求](#token-安全要求) 一致，并额外禁止：
+
+- 禁止在任何输出中打印 `DINGTALK_WEBHOOK`、`DINGTALK_SECRET` 明文
+- 禁止把 `DINGTALK_WEBHOOK`、`DINGTALK_SECRET` 写入：`CLAUDE.md`、`README.md`、Markdown 文章、Git commit、PR body、日志文件
+
+### 最终总结格式
+
+标准 PR 流程完成后，最终必须以表格形式输出以下内容：
+
+| 项目 | 内容 |
+|---|---|
+| 修改文件 | xxx |
+| 分支名 | xxx |
+| Commit Hash | xxx |
+| Push 状态 | 成功 / 失败 |
+| PR 地址 | xxx（真实 PR URL） |
+| 钉钉通知 | 成功 / 失败 / 未配置 |
+
+### 异常处理
+
+**GITHUB_TOKEN 不存在时**：不要尝试安装 `gh CLI`，也不要要求用户安装 `gh CLI`。应提示：
+
+> 当前缺少 GITHUB_TOKEN，无法通过 GitHub API 自动创建 PR。代码如果已 push，可以使用 GitHub 返回的 pull/new 链接手动创建 PR。
+
+**GitHub API 返回认证错误时**（如 `Requires authentication`）：说明 token 未配置、已过期或权限不足。应提示用户检查 Fine-grained Token 权限：
+
+> Repository access：只选择当前仓库
+> Contents：Read and write
+> Pull requests：Read and write
+> Metadata：Read-only
+
+**PR 已存在时**：应输出已有 PR 信息，不要重复创建。
+
+### 安全边界
+
+以下操作**必须禁止或事先询问用户**，不得自行执行：
+
+| 禁止/询问操作 | 策略 |
+|---------------|------|
+| `git reset --hard` | 禁止 |
+| `git clean -fd` | 禁止 |
+| `git push --force` / `--force-with-lease` | 禁止 |
+| `sudo` 命令 | 禁止 |
+| `rm -rf` 递归删除 | 询问确认 |
+| 修改 `.env` / `.env.local` | 询问确认 |
+| 修改系统目录（`/etc`、`/usr` 等） | 禁止 |
+
+### Token 安全要求
+
+- 禁止默认推荐 classic token 的 `repo` 全权限
+- 推荐使用 Fine-grained personal access token，并且只授权当前仓库
+- 禁止在任何输出中展示 token 明文
+- 禁止把 token 写入：`CLAUDE.md`、`.env`、`README.md`、Markdown 文章、Git commit、PR body、日志文件
