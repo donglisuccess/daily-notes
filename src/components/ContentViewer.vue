@@ -4,6 +4,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { LoadedNote, NoteLink, NoteNavigation, OutlineHeading } from '@/types/note';
 import { resolveNoteAsset } from '@/utils/assets';
 import { renderMarkdown } from '@/utils/markdown';
+import { useNotes } from '@/composables/useNotes';
 
 const props = defineProps<{
   note: LoadedNote | null;
@@ -45,7 +46,23 @@ const breadcrumb = computed(() => {
 
 const readingProgressWidth = computed(() => `${Math.round(readingProgress.value * 100)}%`);
 const headingCountLabel = computed(() => `${headingsCache.value.length} 个小节`);
+const { noteFiles } = useNotes();
+
 const relatedNotes = computed(() => props.navigation?.related ?? []);
+
+const articleCount = computed(() => noteFiles.length);
+const categoryCount = computed(() => {
+  const roots = new Set(noteFiles.map((n) => n.segments[0]));
+  return roots.size;
+});
+const recentNotes = computed(() => {
+  // Show up to 4 notes from the end for a "recent" feel
+  return noteFiles.slice(-4).reverse().map((n) => ({
+    title: n.title,
+    routePath: n.routePath,
+    category: n.segments.length > 1 ? n.segments.slice(0, -1).join(' / ') : ''
+  }));
+});
 const hasArticleNavigation = computed(() =>
   Boolean(props.navigation?.previous || props.navigation?.next || relatedNotes.value.length)
 );
@@ -650,30 +667,110 @@ onBeforeUnmount(() => {
         </div>
       </template>
       <div v-else class="intro-panel">
+        <!-- Decorative background glow -->
+        <div class="intro-bg-glow" aria-hidden="true"></div>
+
         <section class="intro-hero">
-          <p class="intro-eyebrow">Daily Notes</p>
-          <h1>一处安静的 Markdown 知识库</h1>
+          <div class="intro-hero__badge">
+            <span class="intro-hero__dot" aria-hidden="true"></span>
+            {{ articleCount }} 篇文章 · {{ categoryCount }} 个分类
+          </div>
+          <h1 class="intro-hero__title">
+            <span class="intro-hero__title-line">一处安静的</span>
+            <span class="intro-hero__title-line intro-hero__title-line--accent">Markdown 知识库</span>
+          </h1>
           <p class="intro-description">
-            用本地 Markdown 管理文章、学习记录和工程笔记。左侧选择文档，右侧自动生成大纲，阅读时保持轻盈、清晰和专注。
+            用本地 Markdown 管理文章、学习记录和工程笔记。<br />左侧选择文档，右侧自动生成大纲，阅读时保持轻盈、清晰和专注。
           </p>
+          <div class="intro-hero__actions">
+            <span class="intro-hero__hint">← 从左侧目录开始阅读</span>
+          </div>
+        </section>
+
+        <section class="intro-stats">
+          <div class="intro-stat">
+            <span class="intro-stat__icon" aria-hidden="true">📄</span>
+            <span class="intro-stat__value">{{ articleCount }}</span>
+            <span class="intro-stat__label">文章总数</span>
+          </div>
+          <div class="intro-stat">
+            <span class="intro-stat__icon" aria-hidden="true">📁</span>
+            <span class="intro-stat__value">{{ categoryCount }}</span>
+            <span class="intro-stat__label">分类目录</span>
+          </div>
+          <div class="intro-stat">
+            <span class="intro-stat__icon" aria-hidden="true">🔖</span>
+            <span class="intro-stat__value">Markdown</span>
+            <span class="intro-stat__label">纯文本格式</span>
+          </div>
         </section>
 
         <div class="intro-grid">
           <section class="intro-card">
-            <h3>内容组织</h3>
-            <p>根据 <code>pages/</code> 目录自动生成树形导航，文件夹就是分类，文件名就是入口。</p>
+            <span class="intro-card__icon" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                <line x1="12" y1="11" x2="12" y2="17"/>
+                <line x1="9" y1="14" x2="15" y2="14"/>
+              </svg>
+            </span>
+            <div class="intro-card__body">
+              <h3>内容组织</h3>
+              <p>根据 <code>pages/</code> 目录自动生成树形导航，文件夹就是分类，文件名就是入口。</p>
+            </div>
           </section>
 
           <section class="intro-card">
-            <h3>阅读体验</h3>
-            <p>Markdown、代码块、表格、图片和视频都按文章阅读场景优化，适合长期维护。</p>
+            <span class="intro-card__icon" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+              </svg>
+            </span>
+            <div class="intro-card__body">
+              <h3>阅读体验</h3>
+              <p>Markdown、代码块、表格、图片和视频都按文章阅读场景优化，适合长期维护。</p>
+            </div>
           </section>
 
           <section class="intro-card">
-            <h3>主题切换</h3>
-            <p>浅色是温和纸张质感，深色保留暖色调，夜间阅读也不会过分刺眼。</p>
+            <span class="intro-card__icon" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"/>
+                <line x1="12" y1="1" x2="12" y2="3"/>
+                <line x1="12" y1="21" x2="12" y2="23"/>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                <line x1="1" y1="12" x2="3" y2="12"/>
+                <line x1="21" y1="12" x2="23" y2="12"/>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+              </svg>
+            </span>
+            <div class="intro-card__body">
+              <h3>主题切换</h3>
+              <p>浅色是温和纸张质感，深色保留暖色调，夜间阅读也不会过分刺眼。</p>
+            </div>
           </section>
         </div>
+
+        <section v-if="recentNotes.length" class="intro-recent">
+          <div class="intro-recent__header">
+            <span>最近更新</span>
+          </div>
+          <div class="intro-recent__list">
+            <button
+              v-for="note in recentNotes"
+              :key="note.routePath"
+              class="intro-recent__item"
+              type="button"
+              @click="handleNavigateNote(note.routePath)"
+            >
+              <span class="intro-recent__title">{{ note.title }}</span>
+              <span v-if="note.category" class="intro-recent__category">{{ note.category }}</span>
+            </button>
+          </div>
+        </section>
       </div>
     </div>
 
@@ -990,54 +1087,192 @@ onBeforeUnmount(() => {
   max-width: 980px;
   margin: 0 auto;
   padding: clamp(24px, 5vw, 56px) clamp(4px, 3vw, 28px) 72px;
+  position: relative;
+}
+
+/* Decorative background glow */
+.intro-bg-glow {
+  position: absolute;
+  top: -80px;
+  right: -120px;
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .intro-hero {
   max-width: 760px;
   padding: 0 0 34px;
   border-bottom: 1px solid var(--divider-color);
+  position: relative;
+  z-index: 1;
 }
 
-.intro-eyebrow {
-  margin: 0 0 12px;
-  color: var(--accent);
+.intro-hero__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 6px 16px 6px 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-bg) 82%, var(--panel-muted));
+  color: var(--text-secondary);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
-.intro-hero h1 {
+.intro-hero__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: inline-block;
+  animation: pulse-dot 2.4s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.82); }
+}
+
+.intro-hero__title {
   margin: 0;
   max-width: 680px;
-  font-size: clamp(36px, 6vw, 64px);
-  line-height: 1.05;
+  font-size: clamp(36px, 6vw, 62px);
+  line-height: 1.12;
   letter-spacing: 0;
   color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.intro-hero__title-line--accent {
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .intro-description {
   max-width: 680px;
-  margin: 20px 0 0;
+  margin: 22px 0 0;
   color: var(--text-secondary);
   font-size: 18px;
-  line-height: 1.75;
+  line-height: 1.8;
 }
 
-.intro-grid {
+.intro-hero__actions {
+  margin-top: 18px;
+}
+
+.intro-hero__hint {
+  display: inline-block;
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px dashed var(--panel-border);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Stats bar */
+.intro-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   margin-top: 26px;
 }
 
+.intro-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 22px 16px 20px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--panel-bg) 72%, transparent);
+  text-align: center;
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+}
+
+.intro-stat:hover {
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--panel-border));
+  box-shadow: 0 8px 24px rgba(62, 49, 38, 0.08);
+}
+
+.intro-stat__icon {
+  font-size: 24px;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.intro-stat__value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.25;
+}
+
+.intro-stat__label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Feature cards */
+.intro-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
 .intro-card {
   border: 1px solid var(--panel-border);
   border-radius: var(--radius-md);
-  padding: 20px;
+  padding: 22px 20px;
   background: color-mix(in srgb, var(--panel-bg) 72%, transparent);
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  transition: border-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base), background var(--transition-base);
+}
+
+.intro-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--panel-border));
+  box-shadow: 0 14px 32px rgba(62, 49, 38, 0.10);
+  transform: translateY(-2px);
+  background: color-mix(in srgb, var(--accent-soft) 28%, var(--panel-bg));
+}
+
+.intro-card__icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent-soft) 60%, var(--panel-muted));
+  color: var(--accent);
+  transition: background var(--transition-base), transform var(--transition-base);
+}
+
+.intro-card:hover .intro-card__icon {
+  background: var(--accent-soft);
+  transform: scale(1.06);
+}
+
+.intro-card__body {
+  min-width: 0;
 }
 
 .intro-card h3 {
-  margin: 0 0 10px;
+  margin: 0 0 8px;
   font-size: 16px;
   color: var(--text-primary);
 }
@@ -1046,6 +1281,7 @@ onBeforeUnmount(() => {
   margin: 0;
   color: var(--text-secondary);
   line-height: 1.7;
+  font-size: 14px;
 }
 
 .intro-card code {
@@ -1054,6 +1290,87 @@ onBeforeUnmount(() => {
   border-radius: 6px;
   padding: 1px 5px;
   color: var(--code-text-strong);
+}
+
+/* Recent notes */
+.intro-recent {
+  margin-top: 26px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--panel-bg) 72%, transparent);
+  overflow: hidden;
+}
+
+.intro-recent__header {
+  display: flex;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--divider-color);
+  background: color-mix(in srgb, var(--panel-muted) 48%, transparent);
+}
+
+.intro-recent__header span {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.intro-recent__list {
+  display: flex;
+  flex-direction: column;
+}
+
+.intro-recent__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border: none;
+  border-bottom: 1px solid var(--divider-color);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: background var(--transition-base), color var(--transition-base);
+}
+
+.intro-recent__item:last-child {
+  border-bottom: none;
+}
+
+.intro-recent__item:hover {
+  background: color-mix(in srgb, var(--accent-soft) 32%, var(--panel-bg));
+}
+
+.intro-recent__item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.intro-recent__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.intro-recent__item:hover .intro-recent__title {
+  color: var(--accent);
+}
+
+.intro-recent__category {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .markdown-body :deep(img) {
@@ -1163,8 +1480,26 @@ onBeforeUnmount(() => {
     bottom: 18px;
   }
 
+  .intro-stats,
   .intro-grid {
     grid-template-columns: 1fr;
+  }
+
+  .intro-hero__title {
+    font-size: clamp(28px, 7vw, 42px);
+  }
+
+  .intro-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .intro-bg-glow {
+    top: -40px;
+    right: -80px;
+    width: 260px;
+    height: 260px;
   }
 
   .article-navigation__pair,
@@ -1219,8 +1554,43 @@ onBeforeUnmount(() => {
     padding: 22px 0 48px;
   }
 
+  .intro-hero__title {
+    font-size: clamp(24px, 7vw, 32px);
+    gap: 4px;
+  }
+
   .intro-description {
-    font-size: 16px;
+    font-size: 15px;
+  }
+
+  .intro-stats {
+    gap: 10px;
+  }
+
+  .intro-stat {
+    padding: 16px 10px 14px;
+  }
+
+  .intro-stat__value {
+    font-size: 18px;
+  }
+
+  .intro-recent__item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 12px 16px;
+  }
+
+  .intro-recent__category {
+    max-width: 100%;
+  }
+
+  .intro-bg-glow {
+    top: -20px;
+    right: -40px;
+    width: 180px;
+    height: 180px;
   }
 
   .copy-toast {
