@@ -1,0 +1,190 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Claude Code 工程化流程图</title>
+  <desc id="desc">展示 Claude Code 从 Memory、Command、SubAgent、Skill、Hooks 到 PR 的工程化流程。</desc>
+  <defs>
+    <linearGradient id="blue" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#2f8cff"/>
+      <stop offset="1" stop-color="#0f5bc7"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#27c8cf"/>
+      <stop offset="1" stop-color="#078e95"/>
+    </linearGradient>
+    <linearGradient id="purple" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#a78bfa"/>
+      <stop offset="1" stop-color="#5b21b6"/>
+    </linearGradient>
+    <linearGradient id="arrow" x1="0" x2="1">
+      <stop offset="0" stop-color="#7aa7ff"/>
+      <stop offset="1" stop-color="#9b7cff"/>
+    </linearGradient>
+    <filter id="soft-shadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#1d3b75" flood-opacity=".08"/>
+    </filter>
+    <style>
+      .bg { fill: #fbfdff; }
+      .title { fill: #0f1b34; font: 700 62px "Microsoft YaHei", "Noto Sans SC", Arial, sans-serif; letter-spacing: 0; }
+      .subtitle { fill: #5b6b91; font: 400 30px "Microsoft YaHei", "Noto Sans SC", Arial, sans-serif; }
+      .card { fill: #fff; stroke-width: 2; filter: url(#soft-shadow); }
+      .card-title { font: 700 36px "Microsoft YaHei", "Noto Sans SC", Arial, sans-serif; }
+      .body { fill: #172238; font: 400 27px "Microsoft YaHei", "Noto Sans SC", Arial, sans-serif; }
+      .num { fill: #fff; font: 700 28px Arial, sans-serif; }
+      .icon-stroke { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 6; }
+      .icon-fill { opacity: .9; }
+      .spark { fill: #6fa7ff; }
+      .dot { fill: #8d7cff; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1600" height="900"/>
+
+  <circle class="spark" cx="325" cy="84" r="4"/>
+  <path class="spark" d="M360 62l7 18 18 7-18 7-7 18-7-18-18-7 18-7z"/>
+  <path class="spark" d="M327 106l5 13 13 5-13 5-5 13-5-13-13-5 13-5z"/>
+  <circle class="spark" cx="294" cy="116" r="4"/>
+  <circle class="dot" cx="1290" cy="76" r="4"/>
+  <path class="dot" d="M1305 88l6 16 16 6-16 6-6 16-6-16-16-6 16-6z"/>
+  <circle class="spark" cx="1328" cy="82" r="4"/>
+  <circle class="spark" cx="1359" cy="113" r="4"/>
+
+  <text class="title" x="800" y="98" text-anchor="middle">Claude Code 工程化流程图</text>
+  <text class="subtitle" x="800" y="168" text-anchor="middle">Memory → Command → SubAgent → Skill → Hooks → PR</text>
+  <line x1="62" x2="1538" y1="214" y2="214" stroke="#8db8ff" stroke-dasharray="8 8" stroke-width="2"/>
+
+  <g id="cards">
+    <g transform="translate(55 265)">
+      <rect class="card" width="210" height="405" rx="22" stroke="#8bbcff"/>
+      <circle cx="105" cy="105" r="70" fill="#e6f2ff"/>
+      <g stroke="url(#blue)" class="icon-stroke">
+        <path d="M62 76h44c10 0 18 8 18 18v58c0-10-8-18-18-18H62z"/>
+        <path d="M148 76h-44c-10 0-18 8-18 18v58c0-10 8-18 18-18h44z"/>
+        <path d="M82 99h18M82 119h18M122 99h18M122 119h18"/>
+        <path d="M128 72v42l12-9 12 9V72z"/>
+      </g>
+      <text class="card-title" x="105" y="238" fill="#0f5bc7" text-anchor="middle">Memory</text>
+      <line x1="42" x2="168" y1="268" y2="268" stroke="#69b8ff" stroke-dasharray="6 6" stroke-width="2"/>
+      <text class="body" x="105" y="328" text-anchor="middle">项目规则与</text>
+      <text class="body" x="105" y="366" text-anchor="middle">长期上下文</text>
+      <circle cx="105" cy="405" r="24" fill="url(#blue)"/>
+      <text class="num" x="105" y="415" text-anchor="middle">1</text>
+    </g>
+
+    <g transform="translate(320 265)">
+      <rect class="card" width="210" height="405" rx="22" stroke="#8bbcff"/>
+      <circle cx="105" cy="105" r="70" fill="#e7f4ff"/>
+      <g stroke="url(#blue)" class="icon-stroke">
+        <rect x="62" y="72" width="86" height="78" rx="8"/>
+        <path d="M62 96h86"/>
+        <path d="M78 84h1M94 84h1M110 84h1"/>
+        <path d="M87 120l16 16-16 16"/>
+        <path d="M113 154h24"/>
+      </g>
+      <text class="card-title" x="105" y="238" fill="#1266c9" text-anchor="middle">Command</text>
+      <line x1="42" x2="168" y1="268" y2="268" stroke="#69b8ff" stroke-dasharray="6 6" stroke-width="2"/>
+      <text class="body" x="105" y="328" text-anchor="middle">用户手动触发</text>
+      <text class="body" x="105" y="366" text-anchor="middle">固定流程</text>
+      <circle cx="105" cy="405" r="24" fill="url(#blue)"/>
+      <text class="num" x="105" y="415" text-anchor="middle">2</text>
+    </g>
+
+    <g transform="translate(585 265)">
+      <rect class="card" width="210" height="405" rx="22" stroke="#59c9d0"/>
+      <circle cx="105" cy="105" r="70" fill="#dff8fb"/>
+      <g fill="url(#cyan)">
+        <circle cx="105" cy="82" r="16"/>
+        <path d="M78 145v-26c0-17 11-30 27-30s27 13 27 30v26z" opacity=".95"/>
+        <circle cx="73" cy="93" r="12"/>
+        <path d="M54 145v-24c0-13 8-22 20-22 6 0 12 2 16 6-9 8-14 19-14 33v7z" opacity=".82"/>
+        <circle cx="137" cy="93" r="12"/>
+        <path d="M136 145v-7c0-14-5-25-14-33 4-4 10-6 16-6 12 0 20 9 20 22v24z" opacity=".82"/>
+      </g>
+      <text class="card-title" x="105" y="238" fill="#078e95" text-anchor="middle">SubAgent</text>
+      <line x1="42" x2="168" y1="268" y2="268" stroke="#42c8d0" stroke-dasharray="6 6" stroke-width="2"/>
+      <text class="body" x="105" y="328" text-anchor="middle">拆分专职角色</text>
+      <text class="body" x="105" y="366" text-anchor="middle">与任务</text>
+      <circle cx="105" cy="405" r="24" fill="url(#cyan)"/>
+      <text class="num" x="105" y="415" text-anchor="middle">3</text>
+    </g>
+
+    <g transform="translate(850 265)">
+      <rect class="card" width="210" height="405" rx="22" stroke="#a58bff"/>
+      <circle cx="105" cy="105" r="70" fill="#f0eaff"/>
+      <g stroke="url(#purple)" class="icon-stroke">
+        <path d="M104 70c-16 0-29 12-29 28-13 2-23 14-23 28 0 15 11 27 25 29 4 14 17 24 32 24"/>
+        <path d="M106 70c16 0 29 12 29 28 13 2 23 14 23 28 0 15-11 27-25 29-4 14-17 24-32 24"/>
+        <path d="M105 75v100"/>
+        <path d="M82 111c12 4 18 12 18 24"/>
+        <path d="M128 111c-12 4-18 12-18 24"/>
+        <path d="M74 135c9 3 15 9 17 18"/>
+        <path d="M136 135c-9 3-15 9-17 18"/>
+      </g>
+      <text class="card-title" x="105" y="238" fill="#5b21b6" text-anchor="middle">Skill</text>
+      <line x1="42" x2="168" y1="268" y2="268" stroke="#9f7cff" stroke-dasharray="6 6" stroke-width="2"/>
+      <text class="body" x="105" y="328" text-anchor="middle">调用专业能力</text>
+      <text class="body" x="105" y="366" text-anchor="middle">与判断策略</text>
+      <circle cx="105" cy="405" r="24" fill="url(#purple)"/>
+      <text class="num" x="105" y="415" text-anchor="middle">4</text>
+    </g>
+
+    <g transform="translate(1115 265)">
+      <rect class="card" width="210" height="405" rx="22" stroke="#9b8cff"/>
+      <circle cx="105" cy="105" r="70" fill="#f0eaff"/>
+      <g stroke="url(#purple)" class="icon-stroke">
+        <path d="M105 66l36 15v35c0 31-17 52-36 62-19-10-36-31-36-62V81z"/>
+        <path d="M86 119l16 17 31-38"/>
+      </g>
+      <text class="card-title" x="105" y="238" fill="#5b21b6" text-anchor="middle">Hooks</text>
+      <line x1="42" x2="168" y1="268" y2="268" stroke="#9f7cff" stroke-dasharray="6 6" stroke-width="2"/>
+      <text class="body" x="105" y="328" text-anchor="middle">关键节点自动</text>
+      <text class="body" x="105" y="366" text-anchor="middle">检查与兜底</text>
+      <circle cx="105" cy="405" r="24" fill="url(#purple)"/>
+      <text class="num" x="105" y="415" text-anchor="middle">5</text>
+    </g>
+
+    <g transform="translate(1380 265)">
+      <rect class="card" width="210" height="405" rx="22" stroke="#9b8cff"/>
+      <circle cx="105" cy="105" r="70" fill="#f0eaff"/>
+      <g stroke="url(#purple)" class="icon-stroke">
+        <circle cx="80" cy="75" r="8"/>
+        <circle cx="80" cy="165" r="8"/>
+        <circle cx="136" cy="95" r="8"/>
+        <path d="M80 83v34c0 19 14 34 34 34h14"/>
+        <path d="M80 117v40"/>
+        <path d="M128 151c-14 0-25-11-25-25"/>
+        <path d="M136 103v20c0 16-10 28-24 31"/>
+      </g>
+      <text class="card-title" x="105" y="238" fill="#5b21b6" text-anchor="middle">PR</text>
+      <line x1="42" x2="168" y1="268" y2="268" stroke="#9f7cff" stroke-dasharray="6 6" stroke-width="2"/>
+      <text class="body" x="105" y="328" text-anchor="middle">输出合并请求</text>
+      <text class="body" x="105" y="366" text-anchor="middle">并通知协作方</text>
+      <circle cx="105" cy="405" r="24" fill="url(#purple)"/>
+      <text class="num" x="105" y="415" text-anchor="middle">6</text>
+    </g>
+  </g>
+
+  <g stroke="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" stroke-width="7">
+    <path d="M270 458h38"/>
+    <path d="M302 442l18 16-18 16"/>
+    <path d="M535 458h38"/>
+    <path d="M567 442l18 16-18 16"/>
+    <path d="M800 458h38"/>
+    <path d="M832 442l18 16-18 16"/>
+    <path d="M1065 458h38"/>
+    <path d="M1097 442l18 16-18 16"/>
+    <path d="M1330 458h38"/>
+    <path d="M1362 442l18 16-18 16"/>
+  </g>
+
+  <g transform="translate(55 740)">
+    <rect width="1490" height="102" rx="20" fill="#fff" stroke="#b8d6ff" stroke-width="2" filter="url(#soft-shadow)"/>
+    <circle cx="72" cy="51" r="40" fill="url(#blue)"/>
+    <g stroke="#fff" class="icon-stroke" stroke-width="5">
+      <path d="M72 26v-9M72 85v-9M47 51h-9M106 51h-9M54 33l-7-7M96 76l-7-7M54 69l-7 7M96 26l-7 7"/>
+      <path d="M56 52c0-11 7-19 16-19s16 8 16 19c0 8-4 12-8 17H64c-4-5-8-9-8-17z"/>
+      <path d="M63 77h18"/>
+    </g>
+    <text x="155" y="62" fill="#0f1b34" font-family="Microsoft YaHei, Noto Sans SC, Arial, sans-serif" font-size="28" font-weight="600">
+      Memory 定规则，Command 串流程，SubAgent 分角色，Skill 给能力，Hooks 做兜底，最终产出 PR。
+    </text>
+  </g>
+</svg>
