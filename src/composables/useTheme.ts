@@ -12,7 +12,35 @@ export function useTheme() {
   };
 
   const toggleTheme = () => {
-    theme.value = theme.value === 'dark' ? 'light' : 'dark';
+    if (typeof document === 'undefined') {
+      theme.value = theme.value === 'dark' ? 'light' : 'dark';
+      return;
+    }
+
+    const targetTheme: ThemeMode = theme.value === 'dark' ? 'light' : 'dark';
+
+    // Create transition overlay that expands from top-right corner
+    const overlay = document.createElement('div');
+    overlay.className = 'theme-transition-overlay';
+    overlay.style.backgroundColor = targetTheme === 'dark' ? '#26221d' : '#f7f3ea';
+    document.body.appendChild(overlay);
+
+    // Switch the actual theme halfway through the animation
+    const switchTimer = setTimeout(() => {
+      theme.value = targetTheme;
+    }, 220);
+
+    // Clean up overlay after animation completes (550ms total)
+    const cleanupTimer = setTimeout(() => {
+      overlay.remove();
+    }, 600);
+
+    // Ensure cleanup if animation ends early (e.g. tab hidden)
+    overlay.addEventListener('animationend', () => {
+      clearTimeout(switchTimer);
+      clearTimeout(cleanupTimer);
+      overlay.remove();
+    });
   };
 
   onMounted(() => {
