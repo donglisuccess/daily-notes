@@ -9,6 +9,26 @@
   --transition-base: 0.18s ease;
 }
 
+
+/* Theme transition overlay — circle expand from top-left corner */
+.theme-transition-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  animation: theme-expand 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes theme-expand {
+  from {
+    clip-path: circle(0% at 0% 0%);
+  }
+  to {
+    clip-path: circle(150vmax at 0% 0%);
+  }
+}
+
+
 html[data-theme='light'] {
   --app-bg: #f7f3ea;
   --panel-bg: #fffaf2;
