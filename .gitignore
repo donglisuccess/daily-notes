@@ -11,3 +11,4 @@ temp
 # TypeScript compiled output (when not using ESM)
 src/**/*.js
 src/**/*.d.ts
+delete
