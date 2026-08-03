@@ -679,6 +679,7 @@ onBeforeUnmount(() => {
             <span class="intro-hero__title-line">一处安静的</span>
             <span class="intro-hero__title-line intro-hero__title-line--accent">Markdown 知识库</span>
           </h1>
+          <p class="intro-motto">知不足而奋进，望远山而前行</p>
           <p class="intro-description">
             用本地 Markdown 管理文章、学习记录和工程笔记。<br />左侧选择文档，右侧自动生成大纲，阅读时保持轻盈、清晰和专注。
           </p>
@@ -1154,6 +1155,17 @@ onBeforeUnmount(() => {
 .intro-hero__title-line--accent {
   color: var(--accent);
   font-weight: 700;
+}
+
+.intro-motto {
+  max-width: 680px;
+  margin: 18px 0 0;
+  padding-left: 14px;
+  border-left: 3px solid var(--accent);
+  color: var(--text-primary);
+  font-size: clamp(17px, 2vw, 22px);
+  font-weight: 650;
+  line-height: 1.7;
 }
 
 .intro-description {
