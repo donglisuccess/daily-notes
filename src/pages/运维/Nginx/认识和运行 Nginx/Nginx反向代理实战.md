@@ -148,7 +148,7 @@ nginx-stage1-chapter3/
 
 > 本章研究的是 Nginx、HTTP、URI 和 Header，而不是 Express 路由机制。
 
-```js
+```javascript
 // backend/server.js
 const http = require('http');
 
@@ -303,9 +303,9 @@ docker stop <container id>
 
 ## 三、Docker 网络和反向代理到底是什么关系
 这是这一章非常值得深入理解的一部分。
-创建：
-```text
-# docker-compose.yml
+
+创建 `docker-compose.yml`：
+```yaml
 services:
   nginx:
     image: nginx:1.28.3
@@ -538,9 +538,8 @@ backend:3000
 ```
 
 ## 四、proxy_pass：Nginx 如何把请求交给后端
-创建：
-```text
-# nginx/conf.d/default.conf
+创建 `nginx/conf.d/default.conf`：
+```nginx
 server {
     listen 80;
 
@@ -1005,29 +1004,12 @@ Backend 可以知道：
 ### 6.6 一个必须纠正的误解
 经常有人说：
 > 配置 X-Real-IP 以后，Backend 就能看到真正客户端 IP。
-严格来说不准确。
-Backend 的：
-```text
-req.socket.remoteAddress 仍然是：Nginx 的 IP。因为 TCP 连接本身没有改变。
-```
-真正发生的是：
-```text
-Nginx
-↓
-通过 HTTP Header
-↓
-告诉 Backend 原始客户端信息
 
-所以：
+严格来说不准确。Backend 的 `req.socket.remoteAddress` 仍然是 Nginx 的 IP，因为 TCP 连接本身没有改变。
 
-TCP 连接来源
+真正发生的是：Nginx 通过 HTTP Header 告诉 Backend 原始客户端信息。
 
-和：
-
-HTTP Header 中声明的客户端来源
-
-不是一回事。
-```
+所以：TCP 连接来源和 HTTP Header 中声明的客户端来源不是一回事。
 
 ## 七、404 和 502：必须真正区分
 这是代理排错中最基础也最重要的能力。
@@ -1228,20 +1210,18 @@ Nginx 请求 3001
 ```
 
 ## 八、日志：如何真正观察代理链路
-默认 access log 能告诉我们客户端请求了什么。
-但为了排查代理问题，可以增加一些 upstream 信息。
+默认 access log 能告诉我们客户端请求了什么，但为了排查代理问题，可以增加一些 upstream 信息。
 
-修改：
+修改配置：
 ```nginx
 log_format proxy_debug
-        '$remote_addr - $host '
-        '"$request" '
-        'status=$status '
-        'uri=$uri '
-        'upstream_addr=$upstream_addr '
-        'upstream_status=$upstream_status '
-        'upstream_response_time=$upstream_response_time';
-
+    '$remote_addr - $host '
+    '"$request" '
+    'status=$status '
+    'uri=$uri '
+    'upstream_addr=$upstream_addr '
+    'upstream_status=$upstream_status '
+    'upstream_response_time=$upstream_response_time';
 
 server {
     listen 80;
@@ -1514,14 +1494,7 @@ docker logs chapter3-backend
 docker exec chapter3-nginx nginx -t
 ```
 
-只回答：配置语法是否正确。
-
-它不能证明：
-
-- Backend 存在
-- 端口正确
-- URI 正确
-- 业务逻辑正确
+只回答：配置语法是否正确。它不能证明 Backend 存在、端口正确、URI 正确或业务逻辑正确。
 
 ### 10.7 nginx -T
 
@@ -1529,7 +1502,16 @@ docker exec chapter3-nginx nginx -t
 docker exec chapter3-nginx nginx -T
 ```
 
-适合确认：
-- 容器里当前配置文件到底是什么
-- include 后的完整配置是什么
-- proxy_pass 到底写成了什么
+适合确认：容器里当前配置文件到底是什么、include 后的完整配置是什么、proxy_pass 到底写成了什么。
+
+## 十一、排错命令速查表
+
+| 命令 | 回答的问题 |
+|------|-------------|
+| `curl -i` | HTTP 状态码、响应头、响应体 |
+| `curl -v` | 连接过程、请求 Header、响应 Header |
+| `docker compose ps` | 容器是否 Up、哪些端口暴露到宿主机 |
+| `docker logs chapter3-nginx` | Nginx 是否收到请求、upstream 连接是否出错 |
+| `docker logs chapter3-backend` | Backend 是否收到请求、实际收到哪个 URI |
+| `nginx -t` | 配置语法是否正确 |
+| `nginx -T` | 最终生效的完整配置是什么 |
