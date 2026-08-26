@@ -22,9 +22,11 @@ const currentNote = ref<LoadedNote | null>(null);
 const headings = ref<OutlineHeading[]>([]);
 const activeHeading = ref<string | null>(null);
 const isMobileNavOpen = ref(false);
+const isImmersiveReading = ref(false);
 const currentPath = computed(() => (route.path.startsWith(NOTE_ROUTE_PREFIX) ? route.path : ''));
 let loadToken = 0;
 const showToc = computed(() => Boolean(currentNote.value));
+const isImmersiveActive = computed(() => Boolean(currentNote.value && isImmersiveReading.value));
 const noteNavigation = computed(() =>
   currentNote.value ? notes.getNoteNavigation(currentNote.value.routePath) : null
 );
@@ -34,6 +36,7 @@ watch(
   async (value) => {
     if (!value) {
       currentNote.value = null;
+      isImmersiveReading.value = false;
       notes.rememberRoute('');
       return;
     }
@@ -100,21 +103,39 @@ const handleSelectNote = (path: string) => {
 
 const handleNavigateHome = () => {
   router.push('/');
+  isImmersiveReading.value = false;
   handleCloseMobileNav();
+};
+
+const handleToggleImmersive = () => {
+  if (!currentNote.value) {
+    return;
+  }
+  isImmersiveReading.value = !isImmersiveReading.value;
+  if (isImmersiveReading.value) {
+    handleCloseMobileNav();
+  }
+};
+
+const handleExitImmersive = () => {
+  isImmersiveReading.value = false;
 };
 </script>
 
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :class="{ 'app-shell--immersive': isImmersiveActive }">
     <AppHeader
+      v-if="!isImmersiveActive"
       :theme="theme"
+      :show-immersive-button="Boolean(currentNote)"
       @toggle-theme="toggleTheme"
+      @toggle-immersive="handleToggleImmersive"
       @toggle-menu="handleOpenMobileNav"
       @navigate-home="handleNavigateHome"
     />
 
-    <div class="layout" :class="{ 'layout--no-toc': !showToc }">
-      <section class="sidebar-panel panel">
+    <div class="layout" :class="{ 'layout--no-toc': !showToc, 'layout--immersive': isImmersiveActive }">
+      <section v-if="!isImmersiveActive" class="sidebar-panel panel">
         <div class="sidebar-scroll">
           <SidebarTree
             :data="notes.treeData"
@@ -127,13 +148,15 @@ const handleNavigateHome = () => {
       <ContentViewer
         :note="currentNote"
         :navigation="noteNavigation"
+        :immersive="isImmersiveActive"
         @update:headings="handleHeadingsUpdate"
         @active-heading-change="handleActiveHeading"
         @navigate-note="handleSelectNote"
+        @exit-immersive="handleExitImmersive"
       />
 
       <TocSidebar
-        v-if="showToc"
+        v-if="showToc && !isImmersiveActive"
         :headings="headings"
         :active-id="activeHeading"
         @navigate="handleNavigate"
@@ -141,6 +164,7 @@ const handleNavigateHome = () => {
     </div>
 
     <ElDrawer
+      v-if="!isImmersiveActive"
       v-model="isMobileNavOpen"
       direction="ltr"
       size="min(88vw, 340px)"

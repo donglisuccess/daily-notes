@@ -9,12 +9,14 @@ import { useNotes } from '@/composables/useNotes';
 const props = defineProps<{
   note: LoadedNote | null;
   navigation: NoteNavigation | null;
+  immersive: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: 'update:headings', value: OutlineHeading[]): void;
   (e: 'active-heading-change', value: string | null): void;
   (e: 'navigate-note', value: string): void;
+  (e: 'exit-immersive'): void;
 }>();
 
 const htmlContent = ref('');
@@ -49,20 +51,47 @@ const headingCountLabel = computed(() => `${headingsCache.value.length} 个小�
 const { noteFiles } = useNotes();
 
 const relatedNotes = computed(() => props.navigation?.related ?? []);
+const isImmersiveArticle = computed(() => Boolean(props.note && props.immersive));
+const contentShellClasses = computed(() => ({
+  'content-shell--home': !props.note,
+  'content-shell--immersive': isImmersiveArticle.value
+}));
+const contentScrollClasses = computed(() => ({
+  'content-scroll--home': !props.note,
+  'content-scroll--immersive': isImmersiveArticle.value
+}));
 
 const articleCount = computed(() => noteFiles.length);
 const categoryCount = computed(() => {
   const roots = new Set(noteFiles.map((n) => n.segments[0]));
   return roots.size;
 });
-const recentNotes = computed(() => {
-  // Show up to 4 notes from the end for a "recent" feel
-  return noteFiles.slice(-4).reverse().map((n) => ({
-    title: n.title,
-    routePath: n.routePath,
-    category: n.segments.length > 1 ? n.segments.slice(0, -1).join(' / ') : ''
-  }));
-});
+const goalProgressItems = computed(() =>
+  [
+    {
+      key: 'short',
+      label: '短期目标进度',
+      target: 200,
+      caption: '阶段写作里程碑'
+    },
+    {
+      key: 'long',
+      label: '长期目标进度',
+      target: 1000,
+      caption: '长期知识库目标'
+    }
+  ].map((goal) => {
+    const rawPercent = (articleCount.value / goal.target) * 100;
+    const progressValue = Number((clamp(rawPercent / 100) * 100).toFixed(1));
+
+    return {
+      ...goal,
+      percentLabel: `${rawPercent.toFixed(1)}%`,
+      progressValue,
+      progressWidth: `${progressValue}%`
+    };
+  })
+);
 const hasArticleNavigation = computed(() =>
   Boolean(props.navigation?.previous || props.navigation?.next || relatedNotes.value.length)
 );
@@ -106,6 +135,14 @@ watch(
     syncReadingState();
   },
   { immediate: true }
+);
+
+watch(
+  () => props.immersive,
+  async () => {
+    await nextTick();
+    syncReadingState();
+  }
 );
 
 function resetScrollPosition() {
@@ -561,9 +598,22 @@ const handleBackToTop = () => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
+const handleExitImmersive = () => {
+  emit('exit-immersive');
+};
+
 const handleKeydown = (event: KeyboardEvent) => {
-  if (event.key === 'Escape') {
+  if (event.key !== 'Escape') {
+    return;
+  }
+
+  if (lightboxSrc.value) {
     closeLightbox();
+    return;
+  }
+
+  if (props.immersive && props.note) {
+    emit('exit-immersive');
   }
 };
 
@@ -600,11 +650,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="content-shell panel">
+  <div class="content-shell panel" :class="contentShellClasses">
     <div v-if="note" class="reading-progress" aria-hidden="true">
       <span :style="{ width: readingProgressWidth }"></span>
     </div>
-    <div ref="scrollRef" class="content-scroll">
+    <div ref="scrollRef" class="content-scroll" :class="contentScrollClasses">
       <template v-if="note">
         <div class="content-inner">
           <header class="content-meta">
@@ -667,9 +717,6 @@ onBeforeUnmount(() => {
         </div>
       </template>
       <div v-else class="intro-panel">
-        <!-- Decorative background glow -->
-        <div class="intro-bg-glow" aria-hidden="true"></div>
-
         <section class="intro-hero">
           <div class="intro-hero__badge">
             <span class="intro-hero__dot" aria-hidden="true"></span>
@@ -686,24 +733,52 @@ onBeforeUnmount(() => {
           <div class="intro-hero__actions">
             <span class="intro-hero__hint">← 从左侧目录开始阅读</span>
           </div>
+
+          <section class="intro-stats" aria-label="知识库概览">
+            <div class="intro-stat">
+              <span class="intro-stat__icon" aria-hidden="true">📄</span>
+              <span class="intro-stat__value">{{ articleCount }}</span>
+              <span class="intro-stat__label">文章总数</span>
+            </div>
+            <div class="intro-stat">
+              <span class="intro-stat__icon" aria-hidden="true">📁</span>
+              <span class="intro-stat__value">{{ categoryCount }}</span>
+              <span class="intro-stat__label">分类目录</span>
+            </div>
+            <div class="intro-stat">
+              <span class="intro-stat__icon" aria-hidden="true">🔖</span>
+              <span class="intro-stat__value">Markdown</span>
+              <span class="intro-stat__label">纯文本格式</span>
+            </div>
+          </section>
         </section>
 
-        <section class="intro-stats">
-          <div class="intro-stat">
-            <span class="intro-stat__icon" aria-hidden="true">📄</span>
-            <span class="intro-stat__value">{{ articleCount }}</span>
-            <span class="intro-stat__label">文章总数</span>
-          </div>
-          <div class="intro-stat">
-            <span class="intro-stat__icon" aria-hidden="true">📁</span>
-            <span class="intro-stat__value">{{ categoryCount }}</span>
-            <span class="intro-stat__label">分类目录</span>
-          </div>
-          <div class="intro-stat">
-            <span class="intro-stat__icon" aria-hidden="true">🔖</span>
-            <span class="intro-stat__value">Markdown</span>
-            <span class="intro-stat__label">纯文本格式</span>
-          </div>
+        <section class="intro-goals" aria-label="写作目标进度">
+          <article
+            v-for="goal in goalProgressItems"
+            :key="goal.key"
+            class="intro-goal"
+            :class="`intro-goal--${goal.key}`"
+          >
+            <div class="intro-goal__header">
+              <span class="intro-goal__label">{{ goal.label }}</span>
+              <strong class="intro-goal__percent">{{ goal.percentLabel }}</strong>
+            </div>
+            <div
+              class="intro-goal__track"
+              role="progressbar"
+              :aria-label="goal.label"
+              :aria-valuenow="goal.progressValue"
+              aria-valuemin="0"
+              aria-valuemax="100"
+            >
+              <span :style="{ width: goal.progressWidth }"></span>
+            </div>
+            <div class="intro-goal__meta">
+              <span>{{ articleCount }} / {{ goal.target }} 篇</span>
+              <span>{{ goal.caption }}</span>
+            </div>
+          </article>
         </section>
 
         <div class="intro-grid">
@@ -754,24 +829,6 @@ onBeforeUnmount(() => {
             </div>
           </section>
         </div>
-
-        <section v-if="recentNotes.length" class="intro-recent">
-          <div class="intro-recent__header">
-            <span>最近更新</span>
-          </div>
-          <div class="intro-recent__list">
-            <button
-              v-for="note in recentNotes"
-              :key="note.routePath"
-              class="intro-recent__item"
-              type="button"
-              @click="handleNavigateNote(note.routePath)"
-            >
-              <span class="intro-recent__title">{{ note.title }}</span>
-              <span v-if="note.category" class="intro-recent__category">{{ note.category }}</span>
-            </button>
-          </div>
-        </section>
       </div>
     </div>
 
@@ -792,6 +849,23 @@ onBeforeUnmount(() => {
     <div v-if="copyToast" class="copy-toast" role="status" aria-live="polite">
       {{ copyToast }}
     </div>
+
+    <button
+      v-if="note && immersive"
+      class="immersive-exit"
+      type="button"
+      aria-label="退出沉浸式阅读"
+      title="退出沉浸式阅读"
+      @click="handleExitImmersive"
+    >
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 3v3a2 2 0 0 1-2 2H3" />
+        <path d="M16 3v3a2 2 0 0 0 2 2h3" />
+        <path d="M8 21v-3a2 2 0 0 0-2-2H3" />
+        <path d="M16 21v-3a2 2 0 0 1 2-2h3" />
+      </svg>
+      <span>退出沉浸</span>
+    </button>
 
     <button
       v-if="showBackToTop"
@@ -817,6 +891,31 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
+.content-shell--home {
+  height: auto;
+  max-height: none;
+  min-height: calc(100vh - var(--header-height) - 44px);
+  overflow: visible;
+}
+
+.content-shell--immersive {
+  height: 100vh;
+  max-height: 100vh;
+  min-height: 100vh;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--app-bg) 96%, transparent) 0%,
+      color-mix(in srgb, var(--panel-bg) 96%, var(--app-bg)) 50%,
+      color-mix(in srgb, var(--app-bg) 96%, transparent) 100%
+    );
+  box-shadow: none;
+  overflow: hidden;
+}
+
 .reading-progress {
   position: absolute;
   top: 0;
@@ -825,6 +924,11 @@ onBeforeUnmount(() => {
   height: 3px;
   z-index: 2;
   background: color-mix(in srgb, var(--panel-muted) 42%, transparent);
+}
+
+.content-shell--immersive .reading-progress {
+  position: fixed;
+  z-index: 30;
 }
 
 .reading-progress span {
@@ -844,10 +948,28 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
+.content-scroll--home {
+  height: auto;
+  overflow: visible;
+  padding-right: 0;
+}
+
+.content-scroll--immersive {
+  height: 100vh;
+  max-height: 100vh;
+  overflow-y: auto;
+  padding-right: 0;
+}
+
 .content-inner {
   max-width: 850px;
   margin: 0 auto;
   padding: 10px clamp(4px, 2vw, 22px) 74px;
+}
+
+.content-shell--immersive .content-inner {
+  max-width: min(860px, calc(100vw - 80px));
+  padding: clamp(42px, 7vh, 78px) 0 108px;
 }
 
 .content-meta {
@@ -856,8 +978,17 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid var(--divider-color);
 }
 
+.content-shell--immersive .content-meta {
+  margin-bottom: 36px;
+  padding-bottom: 26px;
+}
+
 .content-breadcrumb {
+  display: block;
   margin: 0 0 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   text-transform: uppercase;
   font-size: 12px;
   color: var(--text-muted);
@@ -872,6 +1003,11 @@ onBeforeUnmount(() => {
   color: var(--text-primary);
   font-weight: 680;
   letter-spacing: 0;
+}
+
+.content-shell--immersive .content-title {
+  font-size: clamp(34px, 4.2vw, 46px);
+  line-height: 1.14;
 }
 
 .content-stats {
@@ -900,8 +1036,79 @@ onBeforeUnmount(() => {
   transform: translateY(-50%);
 }
 
+.immersive-exit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--panel-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-soft) 36%, var(--panel-bg));
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    background var(--transition-base),
+    border-color var(--transition-base),
+    box-shadow var(--transition-base),
+    transform var(--transition-base);
+}
+
+.immersive-exit svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
+
+.immersive-exit:hover {
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--panel-border));
+  background: var(--accent-soft);
+  box-shadow: 0 10px 26px rgba(62, 49, 38, 0.12);
+  transform: translateY(-1px);
+}
+
+.immersive-exit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.immersive-exit {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 40;
+  min-height: 38px;
+  padding: 0 15px;
+  background: color-mix(in srgb, var(--panel-bg) 88%, transparent);
+  box-shadow: 0 16px 38px rgba(62, 49, 38, 0.16);
+  backdrop-filter: blur(14px);
+}
+
 .markdown-body {
   padding-bottom: 40px;
+}
+
+.content-shell--immersive .markdown-body {
+  font-size: 17px;
+  line-height: 1.86;
+}
+
+.content-shell--immersive .markdown-body :deep(p),
+.content-shell--immersive .markdown-body :deep(li) {
+  line-height: 1.9;
+}
+
+.content-shell--immersive .markdown-body :deep(h1),
+.content-shell--immersive .markdown-body :deep(h2),
+.content-shell--immersive .markdown-body :deep(h3),
+.content-shell--immersive .markdown-body :deep(h4),
+.content-shell--immersive .markdown-body :deep(h5),
+.content-shell--immersive .markdown-body :deep(h6) {
+  scroll-margin-top: 54px;
 }
 
 .article-navigation {
@@ -1085,38 +1292,38 @@ onBeforeUnmount(() => {
 }
 
 .intro-panel {
-  max-width: 980px;
+  max-width: 1120px;
+  min-height: 100%;
   margin: 0 auto;
-  padding: clamp(24px, 5vw, 56px) clamp(4px, 3vw, 28px) 72px;
+  padding: clamp(20px, 3vh, 32px) clamp(8px, 3vw, 36px);
   position: relative;
-}
-
-/* Decorative background glow */
-.intro-bg-glow {
-  position: absolute;
-  top: -80px;
-  right: -120px;
-  width: 420px;
-  height: 420px;
-  border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+  grid-template-areas:
+    'hero goals'
+    'features features';
+  gap: clamp(20px, 3.4vw, 36px);
+  align-content: center;
 }
 
 .intro-hero {
-  max-width: 760px;
-  padding: 0 0 34px;
-  border-bottom: 1px solid var(--divider-color);
+  grid-area: hero;
+  max-width: none;
+  padding: 0;
   position: relative;
   z-index: 1;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .intro-hero__badge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 20px;
+  width: fit-content;
+  margin-bottom: 14px;
   padding: 6px 16px 6px 12px;
   border: 1px solid var(--panel-border);
   border-radius: 999px;
@@ -1143,7 +1350,7 @@ onBeforeUnmount(() => {
 .intro-hero__title {
   margin: 0;
   max-width: 680px;
-  font-size: clamp(36px, 6vw, 62px);
+  font-size: clamp(34px, 4.5vw, 52px);
   line-height: 1.12;
   letter-spacing: 0;
   color: var(--text-primary);
@@ -1159,25 +1366,25 @@ onBeforeUnmount(() => {
 
 .intro-motto {
   max-width: 680px;
-  margin: 18px 0 0;
+  margin: 14px 0 0;
   padding-left: 14px;
   border-left: 3px solid var(--accent);
   color: var(--text-primary);
-  font-size: clamp(17px, 2vw, 22px);
+  font-size: clamp(16px, 1.7vw, 20px);
   font-weight: 650;
-  line-height: 1.7;
+  line-height: 1.6;
 }
 
 .intro-description {
   max-width: 680px;
-  margin: 22px 0 0;
+  margin: 14px 0 0;
   color: var(--text-secondary);
-  font-size: 18px;
-  line-height: 1.8;
+  font-size: 16px;
+  line-height: 1.7;
 }
 
 .intro-hero__actions {
-  margin-top: 18px;
+  margin-top: 14px;
 }
 
 .intro-hero__hint {
@@ -1194,20 +1401,21 @@ onBeforeUnmount(() => {
 .intro-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
   margin-top: 26px;
+  max-width: 620px;
 }
 
 .intro-stat {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
-  padding: 22px 16px 20px;
+  padding: 14px 15px;
   border: 1px solid var(--panel-border);
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--panel-bg) 72%, transparent);
-  text-align: center;
+  text-align: left;
   transition: border-color var(--transition-base), box-shadow var(--transition-base);
 }
 
@@ -1217,9 +1425,8 @@ onBeforeUnmount(() => {
 }
 
 .intro-stat__icon {
-  font-size: 24px;
+  font-size: 20px;
   line-height: 1;
-  margin-bottom: 2px;
 }
 
 .intro-stat__value {
@@ -1235,36 +1442,129 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
+/* Goal progress */
+.intro-goals {
+  grid-area: goals;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 0;
+  align-content: center;
+}
+
+.intro-goal {
+  --goal-color: var(--accent);
+  --goal-glow: rgba(62, 49, 38, 0.12);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--goal-color) 36%, var(--panel-border));
+  border-radius: var(--radius-md);
+  padding: 22px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--goal-color) 12%, var(--panel-bg)) 0%, color-mix(in srgb, var(--panel-bg) 82%, transparent) 100%);
+  box-shadow: 0 16px 36px var(--goal-glow);
+}
+
+.intro-goal--long {
+  --goal-color: color-mix(in srgb, var(--accent) 54%, var(--hljs-addition));
+}
+
+.intro-goal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--goal-color), color-mix(in srgb, var(--goal-color) 48%, var(--text-primary)));
+}
+
+.intro-goal__header,
+.intro-goal__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.intro-goal__header {
+  align-items: baseline;
+  flex-direction: row;
+}
+
+.intro-goal__label {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.intro-goal__percent {
+  color: var(--goal-color);
+  font-size: clamp(30px, 3.4vw, 40px);
+  font-weight: 760;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.intro-goal__track {
+  height: 11px;
+  margin-top: 18px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--goal-color) 24%, var(--panel-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-muted) 74%, transparent);
+}
+
+.intro-goal__track span {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--goal-color), color-mix(in srgb, var(--goal-color) 58%, var(--text-primary)));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--goal-color) 34%, transparent);
+  transition: width 0.24s ease;
+}
+
+.intro-goal__meta {
+  flex-wrap: wrap;
+  align-items: baseline;
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
 /* Feature cards */
 .intro-grid {
+  grid-area: features;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 14px;
+  gap: clamp(18px, 3vw, 32px);
+  margin-top: 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--divider-color);
 }
 
 .intro-card {
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-md);
-  padding: 22px 20px;
-  background: color-mix(in srgb, var(--panel-bg) 72%, transparent);
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
   display: flex;
-  gap: 16px;
+  flex-direction: row;
+  gap: 14px;
   align-items: flex-start;
-  transition: border-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base), background var(--transition-base);
+  transition: color var(--transition-base);
 }
 
 .intro-card:hover {
-  border-color: color-mix(in srgb, var(--accent) 36%, var(--panel-border));
-  box-shadow: 0 14px 32px rgba(62, 49, 38, 0.10);
-  transform: translateY(-2px);
-  background: color-mix(in srgb, var(--accent-soft) 28%, var(--panel-bg));
+  color: var(--accent);
 }
 
 .intro-card__icon {
   flex-shrink: 0;
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1284,16 +1584,16 @@ onBeforeUnmount(() => {
 }
 
 .intro-card h3 {
-  margin: 0 0 8px;
-  font-size: 16px;
+  margin: 0 0 6px;
+  font-size: 15px;
   color: var(--text-primary);
 }
 
 .intro-card p {
   margin: 0;
   color: var(--text-secondary);
-  line-height: 1.7;
-  font-size: 14px;
+  line-height: 1.55;
+  font-size: 13px;
 }
 
 .intro-card code {
@@ -1302,87 +1602,6 @@ onBeforeUnmount(() => {
   border-radius: 6px;
   padding: 1px 5px;
   color: var(--code-text-strong);
-}
-
-/* Recent notes */
-.intro-recent {
-  margin-top: 26px;
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--panel-bg) 72%, transparent);
-  overflow: hidden;
-}
-
-.intro-recent__header {
-  display: flex;
-  align-items: center;
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--divider-color);
-  background: color-mix(in srgb, var(--panel-muted) 48%, transparent);
-}
-
-.intro-recent__header span {
-  color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.intro-recent__list {
-  display: flex;
-  flex-direction: column;
-}
-
-.intro-recent__item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 20px;
-  border: none;
-  border-bottom: 1px solid var(--divider-color);
-  background: transparent;
-  color: var(--text-primary);
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-  transition: background var(--transition-base), color var(--transition-base);
-}
-
-.intro-recent__item:last-child {
-  border-bottom: none;
-}
-
-.intro-recent__item:hover {
-  background: color-mix(in srgb, var(--accent-soft) 32%, var(--panel-bg));
-}
-
-.intro-recent__item:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-
-.intro-recent__title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.intro-recent__item:hover .intro-recent__title {
-  color: var(--accent);
-}
-
-.intro-recent__category {
-  flex-shrink: 0;
-  font-size: 12px;
-  color: var(--text-muted);
-  font-weight: 600;
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .markdown-body :deep(img) {
@@ -1475,15 +1694,46 @@ onBeforeUnmount(() => {
   outline-offset: 3px;
 }
 
+@media (max-width: 1100px) {
+  .intro-panel {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'hero'
+      'goals'
+      'features';
+    align-content: start;
+  }
+
+  .intro-goals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 900px) {
   .content-shell {
     height: auto;
     max-height: none;
   }
 
+  .content-shell--immersive {
+    height: 100vh;
+    max-height: 100vh;
+    min-height: 100vh;
+  }
+
   .content-scroll {
     height: auto;
     max-height: none;
+  }
+
+  .content-scroll--immersive {
+    height: 100vh;
+    max-height: 100vh;
+  }
+
+  .content-shell--immersive .content-inner {
+    max-width: min(760px, calc(100vw - 44px));
+    padding-top: 56px;
   }
 
   .back-top {
@@ -1493,6 +1743,7 @@ onBeforeUnmount(() => {
   }
 
   .intro-stats,
+  .intro-goals,
   .intro-grid {
     grid-template-columns: 1fr;
   }
@@ -1503,15 +1754,13 @@ onBeforeUnmount(() => {
 
   .intro-card {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 14px;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
   }
 
-  .intro-bg-glow {
-    top: -40px;
-    right: -80px;
-    width: 260px;
-    height: 260px;
+  .intro-card__body {
+    width: 100%;
   }
 
   .article-navigation__pair,
@@ -1527,6 +1776,22 @@ onBeforeUnmount(() => {
 
   .content-inner {
     padding: 2px 0 48px;
+  }
+
+  .content-shell--immersive .content-inner {
+    max-width: none;
+    padding: 54px 18px 84px;
+  }
+
+  .content-shell--immersive .markdown-body {
+    font-size: 16px;
+  }
+
+  .immersive-exit {
+    top: 12px;
+    right: 12px;
+    min-height: 36px;
+    padding: 0 12px;
   }
 
   .content-stats {
@@ -1564,6 +1829,7 @@ onBeforeUnmount(() => {
 
   .intro-panel {
     padding: 22px 0 48px;
+    gap: 22px;
   }
 
   .intro-hero__title {
@@ -1587,22 +1853,19 @@ onBeforeUnmount(() => {
     font-size: 18px;
   }
 
-  .intro-recent__item {
-    flex-direction: column;
+  .intro-goal {
+    padding: 16px;
+  }
+
+  .intro-goal__header,
+  .intro-goal__meta {
     align-items: flex-start;
-    gap: 4px;
-    padding: 12px 16px;
+    flex-direction: column;
+    gap: 8px;
   }
 
-  .intro-recent__category {
-    max-width: 100%;
-  }
-
-  .intro-bg-glow {
-    top: -20px;
-    right: -40px;
-    width: 180px;
-    height: 180px;
+  .intro-goal__percent {
+    font-size: 28px;
   }
 
   .copy-toast {

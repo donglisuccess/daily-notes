@@ -99,6 +99,12 @@ html[data-theme='dark'] {
     var(--app-bg);
 }
 
+.app-shell--immersive {
+  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+}
+
 .layout {
   flex: 1;
   display: grid;
@@ -114,6 +120,15 @@ html[data-theme='dark'] {
 
 .layout.layout--no-toc {
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+}
+
+.layout.layout--immersive {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  height: 100vh;
+  min-height: 100vh;
+  padding: 0;
+  align-items: stretch;
 }
 
 .panel {
@@ -559,6 +574,12 @@ html[data-theme='dark'] {
     grid-template-columns: 1fr;
     height: auto;
     min-height: calc(100vh - var(--header-height));
+  }
+
+  .layout.layout--immersive {
+    height: 100vh;
+    min-height: 100vh;
+    padding: 0;
   }
 
   .layout.layout--no-toc {

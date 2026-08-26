@@ -5,9 +5,13 @@ import { useNotes } from '@/composables/useNotes';
 import { useRouter } from 'vue-router';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 
-defineProps<{ theme: 'light' | 'dark' }>();
+defineProps<{
+  theme: 'light' | 'dark';
+  showImmersiveButton?: boolean;
+}>();
 const emit = defineEmits<{
   (e: 'toggle-theme'): void;
+  (e: 'toggle-immersive'): void;
   (e: 'toggle-menu'): void;
   (e: 'navigate-home'): void;
 }>();
@@ -186,7 +190,25 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <ThemeToggle :theme="theme" @toggle="emit('toggle-theme')" />
+    <div class="header-actions">
+      <button
+        v-if="showImmersiveButton"
+        class="header-immersive-toggle"
+        type="button"
+        aria-label="进入沉浸式阅读"
+        title="进入沉浸式阅读"
+        @click="emit('toggle-immersive')"
+      >
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+          <path d="M16 3h3a2 2 0 0 1 2 2v3" />
+          <path d="M8 21H5a2 2 0 0 1-2-2v-3" />
+          <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+        </svg>
+        <span>沉浸阅读</span>
+      </button>
+      <ThemeToggle :theme="theme" @toggle="emit('toggle-theme')" />
+    </div>
   </header>
 </template>
 
@@ -209,6 +231,50 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.header-immersive-toggle {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 13px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--panel-border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent-soft) 36%, var(--panel-bg));
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    background var(--transition-base),
+    border-color var(--transition-base),
+    box-shadow var(--transition-base),
+    transform var(--transition-base);
+}
+
+.header-immersive-toggle svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
+
+.header-immersive-toggle:hover {
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--panel-border));
+  background: var(--accent-soft);
+  box-shadow: 0 10px 26px rgba(62, 49, 38, 0.12);
+  transform: translateY(-1px);
 }
 
 .menu-toggle {
@@ -251,7 +317,8 @@ onBeforeUnmount(() => {
 }
 
 .app-title:focus-visible,
-.menu-toggle:focus-visible {
+.menu-toggle:focus-visible,
+.header-immersive-toggle:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
@@ -426,6 +493,7 @@ onBeforeUnmount(() => {
 @media (max-width: 600px) {
   .app-header {
     padding: 10px 12px;
+    gap: 10px;
   }
 
   .header-left {
@@ -442,6 +510,21 @@ onBeforeUnmount(() => {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .header-actions {
+    gap: 8px;
+  }
+
+  .header-immersive-toggle {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    padding: 0;
+  }
+
+  .header-immersive-toggle span {
+    display: none;
   }
 }
 </style>
