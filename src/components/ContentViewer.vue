@@ -27,16 +27,23 @@ const copyToast = ref('');
 const readingTimeLabel = ref('');
 const readingProgress = ref(0);
 const showBackToTop = ref(false);
+const currentTime = ref(new Date());
+const goalAnimationRatio = ref(0);
 let hasImageListener = false;
 let hasScrollListener = false;
 let hasWindowScrollListener = false;
 let scrollFrame: number | undefined;
 let copyToastTimer: number | undefined;
+let currentTimeTimer: number | undefined;
+let goalAnimationFrame: number | undefined;
 let mermaidBlockSequence = 0;
 let mermaidRenderTimer: number | undefined;
 let mermaidRenderToken = 0;
 let themeObserver: MutationObserver | undefined;
 let activeHeadingId: string | null = null;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const GOAL_ANIMATION_DURATION = 1100;
 
 const breadcrumb = computed(() => {
   const segments = props.note?.segments;
@@ -69,26 +76,43 @@ const categoryCount = computed(() => {
 const goalProgressItems = computed(() =>
   [
     {
-      key: 'short',
-      label: '短期目标进度',
-      target: 200,
-      caption: '阶段写作里程碑'
+      key: 'first',
+      label: '100 篇目标进度',
+      target: 100,
+      targetDate: new Date(2026, 11, 31),
+      targetDateLabel: '12月31日'
     },
     {
-      key: 'long',
-      label: '长期目标进度',
-      target: 1000,
-      caption: '长期知识库目标'
+      key: 'second',
+      label: '150 篇目标进度',
+      target: 150,
+      targetDate: new Date(2027, 1, 5),
+      targetDateLabel: '2027年2月5日'
+    },
+    {
+      key: 'third',
+      label: '200 篇目标进度',
+      target: 200,
+      targetDate: new Date(2027, 5, 15),
+      targetDateLabel: '2027年6月15日'
     }
   ].map((goal) => {
     const rawPercent = (articleCount.value / goal.target) * 100;
     const progressValue = Number((clamp(rawPercent / 100) * 100).toFixed(1));
+    const animatedPercentValue = rawPercent * goalAnimationRatio.value;
+    const animatedProgressValue = Number((progressValue * goalAnimationRatio.value).toFixed(1));
+    const animatedArticleCount = Math.round(articleCount.value * goalAnimationRatio.value);
+    const remainingDays = getRemainingDays(goal.targetDate);
 
     return {
       ...goal,
-      percentLabel: `${rawPercent.toFixed(1)}%`,
+      percentLabel: `${animatedPercentValue.toFixed(1)}%`,
       progressValue,
-      progressWidth: `${progressValue}%`
+      animatedProgressValue,
+      progressWidth: `${animatedProgressValue}%`,
+      animatedArticleCount,
+      remainingDays,
+      remainingLabel: `剩余 ${remainingDays} 天`
     };
   })
 );
@@ -145,6 +169,23 @@ watch(
   }
 );
 
+watch(
+  articleCount,
+  () => {
+    animateGoalProgress();
+  }
+);
+
+watch(
+  () => props.note,
+  async (note, previousNote) => {
+    if (!note && previousNote) {
+      await nextTick();
+      animateGoalProgress();
+    }
+  }
+);
+
 function resetScrollPosition() {
   const container = scrollRef.value;
   if (container) {
@@ -153,6 +194,64 @@ function resetScrollPosition() {
   if (typeof window !== 'undefined') {
     window.scrollTo({ top: 0 });
   }
+}
+
+function getStartOfLocalDay(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
+
+function getRemainingDays(targetDate: Date) {
+  const today = getStartOfLocalDay(currentTime.value);
+  const targetDay = getStartOfLocalDay(targetDate);
+  return Math.max(0, Math.ceil((targetDay.getTime() - today.getTime()) / DAY_MS));
+}
+
+function easeOutCubic(value: number) {
+  return 1 - Math.pow(1 - value, 3);
+}
+
+function shouldReduceMotion() {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+}
+
+function stopGoalProgressAnimation() {
+  if (goalAnimationFrame === undefined || typeof window === 'undefined') {
+    return;
+  }
+  window.cancelAnimationFrame(goalAnimationFrame);
+  goalAnimationFrame = undefined;
+}
+
+function animateGoalProgress() {
+  if (typeof window === 'undefined') {
+    goalAnimationRatio.value = 1;
+    return;
+  }
+
+  stopGoalProgressAnimation();
+
+  if (shouldReduceMotion()) {
+    goalAnimationRatio.value = 1;
+    return;
+  }
+
+  const startTime = window.performance.now();
+  goalAnimationRatio.value = 0;
+
+  const tick = (time: number) => {
+    const progress = clamp((time - startTime) / GOAL_ANIMATION_DURATION);
+    goalAnimationRatio.value = easeOutCubic(progress);
+
+    if (progress < 1) {
+      goalAnimationFrame = window.requestAnimationFrame(tick);
+      return;
+    }
+
+    goalAnimationRatio.value = 1;
+    goalAnimationFrame = undefined;
+  };
+
+  goalAnimationFrame = window.requestAnimationFrame(tick);
 }
 
 function ensureScrollListener() {
@@ -634,6 +733,15 @@ function cleanupImageListener() {
 }
 
 onMounted(() => {
+  currentTime.value = new Date();
+  currentTimeTimer = window.setInterval(() => {
+    currentTime.value = new Date();
+  }, 60 * 1000);
+  if (!props.note) {
+    animateGoalProgress();
+  } else {
+    goalAnimationRatio.value = 1;
+  }
   ensureImageListener();
   ensureScrollListener();
   setupThemeObserver();
@@ -644,6 +752,8 @@ onBeforeUnmount(() => {
   cleanupScrollListener();
   cleanupImageListener();
   cleanupThemeObserver();
+  stopGoalProgressAnimation();
+  window.clearInterval(currentTimeTimer);
   window.clearTimeout(copyToastTimer);
   window.removeEventListener('keydown', handleKeydown);
 });
@@ -762,21 +872,25 @@ onBeforeUnmount(() => {
           >
             <div class="intro-goal__header">
               <span class="intro-goal__label">{{ goal.label }}</span>
+              <span class="intro-goal__date">目标 {{ goal.targetDateLabel }}</span>
+            </div>
+            <div class="intro-goal__summary">
               <strong class="intro-goal__percent">{{ goal.percentLabel }}</strong>
+              <span class="intro-goal__remaining">{{ goal.remainingLabel }}</span>
             </div>
             <div
               class="intro-goal__track"
               role="progressbar"
               :aria-label="goal.label"
-              :aria-valuenow="goal.progressValue"
+              :aria-valuenow="goal.animatedProgressValue"
               aria-valuemin="0"
               aria-valuemax="100"
             >
               <span :style="{ width: goal.progressWidth }"></span>
             </div>
             <div class="intro-goal__meta">
-              <span>{{ articleCount }} / {{ goal.target }} 篇</span>
-              <span>{{ goal.caption }}</span>
+              <span>已完成 {{ goal.animatedArticleCount }} 篇</span>
+              <span>{{ goal.target }} 篇</span>
             </div>
           </article>
         </section>
@@ -1447,7 +1561,7 @@ onBeforeUnmount(() => {
   grid-area: goals;
   display: grid;
   grid-template-columns: 1fr;
-  gap: 16px;
+  gap: 14px;
   margin-top: 0;
   align-content: center;
 }
@@ -1456,17 +1570,27 @@ onBeforeUnmount(() => {
   --goal-color: var(--accent);
   --goal-glow: rgba(62, 49, 38, 0.12);
   position: relative;
+  isolation: isolate;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--goal-color) 36%, var(--panel-border));
   border-radius: var(--radius-md);
-  padding: 22px;
+  padding: 18px 18px 16px;
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--goal-color) 12%, var(--panel-bg)) 0%, color-mix(in srgb, var(--panel-bg) 82%, transparent) 100%);
-  box-shadow: 0 16px 36px var(--goal-glow);
+    linear-gradient(135deg, color-mix(in srgb, var(--goal-color) 14%, transparent) 0%, transparent 58%),
+    linear-gradient(180deg, color-mix(in srgb, var(--panel-bg) 92%, var(--panel-muted)) 0%, color-mix(in srgb, var(--panel-bg) 76%, transparent) 100%);
+  box-shadow: 0 14px 30px var(--goal-glow);
+  transition:
+    border-color var(--transition-base),
+    box-shadow var(--transition-base),
+    transform var(--transition-base);
 }
 
-.intro-goal--long {
+.intro-goal--second {
   --goal-color: color-mix(in srgb, var(--accent) 54%, var(--hljs-addition));
+}
+
+.intro-goal--third {
+  --goal-color: color-mix(in srgb, var(--accent) 46%, var(--hljs-string));
 }
 
 .intro-goal::before {
@@ -1474,12 +1598,33 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--goal-color), color-mix(in srgb, var(--goal-color) 48%, var(--text-primary)));
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--goal-color), color-mix(in srgb, var(--goal-color) 46%, var(--text-primary)));
+}
+
+.intro-goal::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(120deg, transparent 0%, color-mix(in srgb, var(--goal-color) 9%, transparent) 44%, transparent 78%);
+  opacity: 0;
+  transition: opacity var(--transition-base);
+}
+
+.intro-goal:hover {
+  border-color: color-mix(in srgb, var(--goal-color) 52%, var(--panel-border));
+  box-shadow: 0 18px 38px color-mix(in srgb, var(--goal-color) 16%, transparent);
+  transform: translateY(-2px);
+}
+
+.intro-goal:hover::after {
+  opacity: 1;
 }
 
 .intro-goal__header,
+.intro-goal__summary,
 .intro-goal__meta {
   display: flex;
   justify-content: space-between;
@@ -1487,32 +1632,60 @@ onBeforeUnmount(() => {
 }
 
 .intro-goal__header {
-  align-items: baseline;
+  align-items: center;
   flex-direction: row;
 }
 
 .intro-goal__label {
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
+}
+
+.intro-goal__date,
+.intro-goal__remaining {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--goal-color) 12%, var(--panel-bg));
+  color: var(--goal-color);
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.intro-goal__date {
+  padding: 6px 9px;
+}
+
+.intro-goal__summary {
+  align-items: flex-end;
+  margin-top: 14px;
 }
 
 .intro-goal__percent {
   color: var(--goal-color);
-  font-size: clamp(30px, 3.4vw, 40px);
+  font-size: clamp(34px, 4vw, 46px);
   font-weight: 760;
   line-height: 1;
   letter-spacing: 0;
   white-space: nowrap;
 }
 
+.intro-goal__remaining {
+  padding: 7px 10px;
+  margin-bottom: 3px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--goal-color) 20%, transparent);
+}
+
 .intro-goal__track {
-  height: 11px;
-  margin-top: 18px;
+  position: relative;
+  height: 10px;
+  margin-top: 16px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--goal-color) 24%, var(--panel-border));
+  border: 1px solid color-mix(in srgb, var(--goal-color) 22%, var(--panel-border));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--panel-muted) 74%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--panel-muted) 72%, transparent), color-mix(in srgb, var(--panel-bg) 82%, transparent));
 }
 
 .intro-goal__track span {
@@ -1522,16 +1695,18 @@ onBeforeUnmount(() => {
   border-radius: inherit;
   background: linear-gradient(90deg, var(--goal-color), color-mix(in srgb, var(--goal-color) 58%, var(--text-primary)));
   box-shadow: 0 0 18px color-mix(in srgb, var(--goal-color) 34%, transparent);
-  transition: width 0.24s ease;
 }
 
 .intro-goal__meta {
-  flex-wrap: wrap;
   align-items: baseline;
-  margin-top: 12px;
+  margin-top: 10px;
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 650;
+}
+
+.intro-goal__meta span:first-child {
+  color: var(--text-primary);
 }
 
 /* Feature cards */
@@ -1705,7 +1880,7 @@ onBeforeUnmount(() => {
   }
 
   .intro-goals {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -1858,14 +2033,19 @@ onBeforeUnmount(() => {
   }
 
   .intro-goal__header,
+  .intro-goal__summary,
   .intro-goal__meta {
     align-items: flex-start;
     flex-direction: column;
     gap: 8px;
   }
 
+  .intro-goal__summary {
+    margin-top: 12px;
+  }
+
   .intro-goal__percent {
-    font-size: 28px;
+    font-size: 32px;
   }
 
   .copy-toast {
