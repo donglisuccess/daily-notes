@@ -213,3 +213,253 @@ CA 使用自己的私钥对证书进行签名。
 
 浏览器使用 CA 的公钥验证签名，从而判断证书是否可信。
 
+### 4.3 证书链
+操作系统或浏览器中预装了一批受信任的根证书。
+
+信任关系通常是：
+```
+浏览器信任根 CA
+↓
+根 CA 签发中间 CA 证书
+↓
+中间 CA 签发网站证书
+↓
+浏览器验证整个证书链
+```
+这就是证书链。
+
+服务器通常需要提供：
+```
+网站证书 + 中间 CA 证书
+```
+根证书通常已经存在于客户端信任库中，不需要服务器重复发送。
+
+### 4.4 自签名证书为什么报警
+自签名证书由自己的私钥给自己签名：
+```
+网站证书
+↓
+签发者还是自己
+```
+它依然可以完成 TLS 加密，但浏览器的信任库里没有这个自建 CA 或证书，因此无法建立可信链。
+
+所以浏览器报警并不是说：
+> 连接一定没有加密。
+
+而是说：
+> 连接可能已经加密，但浏览器无法确认服务器身份可信。
+
+### 4.5 域名与证书的关系
+证书需要声明自己适用于哪些域名，现代客户端主要检查 SAN：
+```
+Subject Alternative Name
+```
+例如：
+```
+DNS:localhost
+DNS:example.com
+DNS:*.example.com
+IP:127.0.0.1
+```
+如果访问：
+```
+https://api.example.com
+```
+但证书只包含：
+```
+DNS:www.example.com
+```
+即使证书由可信 CA 签发，浏览器仍然会报域名不匹配。
+通配符证书：
+```
+*.example.com
+```
+通常可以匹配：
+```
+api.example.com
+www.example.com
+```
+但通常不能匹配：
+```
+example.com
+a.b.example.com
+```
+## 五、SNI：一个 IP 为什么能部署多个 HTTPS 域名
+同一个 IP 可以部署：
+```
+https://a.example.com
+https://b.example.com
+```
+但 TLS 握手发生在 HTTP 请求之前。此时 Nginx 还没有读到 HTTP 的 Host 请求头，它怎么知道返回哪张证书？
+```
+答案是 SNI：Server Name Indication
+```
+客户端会在 TLS ClientHello 中提前告诉服务器目标域名：
+```
+server_name = a.example.com
+```
+Nginx根据：
+```nginx
+listen 443 ssl;
+server_name a.example.com;
+```
+选择对应的 HTTPS server 和证书。
+因此：
+```
+SNI 用于 TLS 握手阶段选择证书
+Host 用于 HTTP 阶段表达目标主机
+```
+二者出现的阶段不同，不应该混为一谈。
+
+## 六、生成自签名证书
+执行：
+```
+openssl req \
+  -x509 \
+  -nodes \
+  -newkey rsa:2048 \
+  -keyout nginx/certs/localhost.key \
+  -out nginx/certs/localhost.crt \
+  -days 365 \
+  -subj "/CN=localhost" \
+  -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+```
+参数含义：
+| 参数                 | 作用                    |
+| ------------------ | --------------------- |
+| `req`              | 使用证书请求相关功能            |
+| `-x509`            | 直接生成自签名证书，而不是只生成 CSR  |
+| `-nodes`           | 私钥不设置口令，便于 Nginx 自动启动 |
+| `-newkey rsa:2048` | 生成新的 2048 位 RSA 私钥    |
+| `-keyout`          | 私钥输出路径                |
+| `-out`             | 证书输出路径                |
+| `-days 365`        | 有效期 365 天             |
+| `-subj`            | 设置证书主题                |
+| `-addext`          | 添加 SAN 域名和 IP         |
+生成结果：
+```
+nginx/certs/localhost.crt
+nginx/certs/localhost.key
+```
+其中：
+```
+localhost.crt → 可以公开的证书
+localhost.key → 必须保护的私钥
+```
+生产环境必须限制私钥的读取权限，不能提交到 Git 仓库。
+
+## 七、建立最小 HTTPS 服务
+先不要配置跳转、SPA 和 API，只建立最小 HTTPS 服务。
+
+创建 nginx/conf.d/default.conf：
+```Nginx
+server {
+    listen 443 ssl;
+    server_name localhost;
+
+    ssl_certificate     /etc/nginx/certs/localhost.crt;
+    ssl_certificate_key /etc/nginx/certs/localhost.key;
+
+    location / {
+        return 200 "HTTPS works\n";
+    }
+}
+```
+### 7.1 listen 443 ssl
+```Nginx
+listen 443 ssl;
+```
+含义：
+- 监听容器内 TCP 443 端口。
+- 此端口使用 TLS。
+- 客户端需要先完成 TLS 握手。
+- 握手成功后，Nginx 才处理其中的 HTTP 请求。
+
+ssl 不是“把响应内容自动改成 HTTPS”，而是声明这个监听端口期望接收 TLS 流量。
+
+### 7.2 ssl_certificate
+```Nginx
+ssl_certificate /etc/nginx/certs/localhost.crt;
+```
+告诉 Nginx：
+- TLS 握手时向客户端发送哪张证书。
+- 证书中包含服务器公钥和域名等信息。
+
+真实 CA 环境中，这里通常使用包含站点证书和中间证书的完整证书链文件，例如 fullchain.pem。
+
+### 7.3 ssl_certificate_key
+```Nginx
+ssl_certificate_key /etc/nginx/certs/localhost.key;
+```
+告诉 Nginx：
+- 使用哪一个私钥完成 TLS 身份认证相关的密码学操作。
+- 该私钥必须和证书中的公钥匹配。
+私钥不会发送给客户端。
+
+## 八、使用 Docker Compose 运行
+创建 docker-compose.yml：
+```yml
+services:
+  nginx:
+    image: nginx:1.28-alpine
+    container_name: nginx-https
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./frontend:/usr/share/nginx/html:ro
+```
+启动：
+```bash
+docker compose up -d
+```
+检查：
+```bash
+docker compose ps
+docker logs nginx-https
+```
+测试配置：
+```bash
+docker compose exec nginx nginx -t
+```
+查看最终生效配置：
+```bash
+docker compose exec nginx nginx -T
+```
+
+## 九、使用 curl 观察 HTTPS
+直接访问：
+```bash
+curl -v https://localhost:8443/
+```
+通常会失败，出现类似：
+![curl without -k flag](./images/curl-without-k-flag.png)
+
+原因不是 TLS 握手完全没有发生，而是 curl 无法把该证书连接到受信任根 CA。
+
+使用：
+```bash
+curl -vk https://localhost:8443/
+```
+其中：
+- -v：显示连接、TLS 和 HTTP 过程。
+- -k：跳过证书可信性和主机身份验证。
+成功后应看到：
+![curl with -k flag success](./images/curl-with-k-flag-success.png)
+
+警告：
+> curl -k 只适合实验和排错，不代表证书已经可信，也不应成为生产环境的默认解决方案。
+
+
+更合理的实验方式是明确告诉 curl 信任哪张证书：
+```
+curl -v \
+  --cacert nginx/certs/localhost.crt \
+  https://localhost:8443/
+```
+因为证书 SAN 中包含 localhost，域名检查也能通过。
+
+此时通过浏览器访问就会出现如下问题：
+![browser cert warning](./images/browser-cert-warning.png)
