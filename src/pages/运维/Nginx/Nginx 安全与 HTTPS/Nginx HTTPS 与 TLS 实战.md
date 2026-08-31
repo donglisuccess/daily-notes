@@ -463,3 +463,264 @@ curl -v \
 
 此时通过浏览器访问就会出现如下问题：
 ![browser cert warning](./images/browser-cert-warning.png)
+
+## 十、HTTP 为什么不能直接交给 HTTPS server
+
+执行：
+
+```bash
+curl -v http://localhost:8443/
+```
+
+注意这里故意在 HTTPS 端口使用了 `http://`。
+
+Nginx 的 `443` 监听端口期待收到 TLS ClientHello，但客户端发送的是普通 HTTP 文本：
+
+```http
+GET / HTTP/1.1
+```
+
+协议不匹配，常见结果是：
+
+```text
+< HTTP/1.1 400 Bad Request
+< Server: nginx/1.28.3
+< Date: Thu, 27 Aug 2026 03:01:04 GMT
+< Content-Type: text/html
+< Content-Length: 255
+< Connection: close
+```
+
+反过来执行：
+
+```bash
+curl -vk https://localhost:8080/
+```
+
+客户端向普通 HTTP 端口发送 TLS 握手数据，HTTP server 无法将其解析为合法 HTTP 请求，通常会报 TLS 连接失败或连接被重置。
+
+## 十一、配置 HTTP 跳转 HTTPS
+
+加入一个监听 `80` 的 server：
+
+```nginx
+server {
+    listen 80;
+    server_name localhost;
+
+    return 301 https://$host:8443$request_uri;
+}
+```
+
+实验环境使用宿主机 `8443`，所以跳转地址需要显式携带 `:8443`。
+
+真实生产环境通常直接使用：
+
+```nginx
+return 301 https://$host$request_uri;
+```
+
+因为 HTTPS 默认端口就是 `443`。
+
+重新加载配置：
+
+```bash
+docker compose exec nginx nginx -t
+docker compose exec nginx nginx -s reload
+```
+
+访问：
+
+```text
+http://ip:8080/
+```
+
+浏览器网络面板中可以看到两步结果：
+
+![HTTP 请求返回 301 重定向](./images/http-redirect-301-highlight.png)
+
+![跳转后 HTTPS 请求返回 200 OK](./images/https-redirect-200-ok.png)
+
+## 十二、为什么通常同时监听 80 和 443
+
+只开放 `443` 并不能让访问：
+
+```text
+http://example.com
+```
+
+的用户自动转成 HTTPS。
+
+如果 `80` 没有服务，浏览器只会连接失败，根本收不到跳转响应。
+
+因此生产环境通常使用：
+
+```text
+80：接收 HTTP，返回重定向
+443：完成 TLS，提供业务服务
+```
+
+## 十三、`$host` 和 `$request_uri`
+
+### 13.1 `$host`
+
+`$host` 是客户端请求的域名，例如：
+
+```text
+http://example.com
+```
+
+此时 `$host` 的值就是：
+
+```text
+example.com
+```
+
+### 13.2 `$request_uri`
+
+`$request_uri` 是客户端请求的完整 URI，例如：
+
+```text
+http://example.com/foo/bar?baz=qux
+```
+
+此时 `$request_uri` 的值就是：
+
+```text
+/foo/bar?baz=qux
+```
+
+## 十四、301 与 308 的区别
+
+两者都是永久重定向，但对请求方法的语义不同。
+
+### 14.1 301
+
+```nginx
+return 301 https://$host$request_uri;
+```
+
+`301` 对于 `GET` 和 `HEAD` 很常见。
+
+但某些客户端在处理非 `GET` 请求时，可能会把原来的 `POST` 改成 `GET`。
+
+### 14.2 308
+
+```nginx
+return 308 https://$host$request_uri;
+```
+
+`308` 明确要求：
+
+- 保留请求方法。
+- 保留请求体。
+
+例如：
+
+```http
+POST http://example.com/api/orders
+```
+
+经过 `308` 后仍应为：
+
+```http
+POST https://example.com/api/orders
+```
+
+不过必须认识一个现实问题：
+
+> 即使使用 308，第一次 HTTP 请求的敏感请求体也已经通过明文网络发送到了 80 端口。
+
+因此 API 客户端不应该依赖跳转来获得安全性，而应该从一开始就请求 HTTPS。
+
+## 十五、加入 SPA 和静态资源
+
+创建 `frontend/index.html`：
+
+```html
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nginx HTTPS Lab</title>
+</head>
+<body>
+  <h1>Nginx HTTPS 与 TLS 实战</h1>
+  <p id="status">正在加载……</p>
+  <script src="/assets/app.js"></script>
+</body>
+</html>
+```
+
+创建 `frontend/assets/app.js`：
+
+```javascript
+document.querySelector('#status').textContent =
+  `当前页面协议：${window.location.protocol}`;
+```
+
+在 HTTPS server 中配置：
+
+```nginx
+root /usr/share/nginx/html;
+index index.html;
+
+location /assets/ {
+    try_files $uri =404;
+
+    expires 7d;
+    add_header Cache-Control "public";
+}
+
+location / {
+    try_files $uri $uri/ /index.html;
+}
+```
+
+请求 `/about` 时：
+
+```mermaid
+graph TD
+    Request([请求: /about]) --> Nginx{Nginx}
+
+    subgraph ServerSide [服务端处理]
+        Nginx --> CheckFile[查找物理文件:<br/>/usr/share/nginx/html/about]
+        CheckFile --> Exists{文件存在?}
+        Exists -->|不存在| Fallback[try_files 回退:<br/>返回 /index.html]
+    end
+
+    subgraph ClientSide [客户端 SPA 处理]
+        Fallback --> LoadSPA[加载 SPA 首页]
+        LoadSPA --> Router[前端路由接管:<br/>解析当前路径 /about]
+        Router --> Render([渲染 /about 页面])
+    end
+
+    classDef req fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef nginx fill:#fff3e0,stroke:#ef6c00,stroke-width:2px;
+    classDef check fill:#f5f5f5,stroke:#616161,stroke-width:2px;
+    classDef fallback fill:#ffebee,stroke:#c62828,stroke-width:2px;
+    classDef spa fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class Request req;
+    class Nginx,CheckFile nginx;
+    class Exists check;
+    class Fallback fallback;
+    class LoadSPA,Router,Render spa;
+```
+
+验证：
+
+```bash
+curl -kI https://localhost:8443/
+curl -kI https://localhost:8443/about
+curl -kI https://localhost:8443/assets/app.js
+```
+
+错误的静态资源不能回退到 SPA，否则 JS 资源请求可能得到 HTML：
+
+```bash
+curl -ki https://localhost:8443/assets/not-found.js
+```
+
+应该返回 `404`。
