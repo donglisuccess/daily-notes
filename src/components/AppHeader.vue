@@ -1,17 +1,15 @@
 <script setup lang="ts">
-import ThemeToggle from './ThemeToggle.vue';
-import IconMenu from './icons/IconMenu.vue';
-import { useNotes } from '@/composables/useNotes';
-import { useRouter } from 'vue-router';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+
+import { useNotes } from '@/composables/useNotes';
+import IconMenu from './icons/IconMenu.vue';
 
 defineProps<{
-  theme: 'light' | 'dark';
-  home?: boolean;
   showImmersiveButton?: boolean;
 }>();
+
 const emit = defineEmits<{
-  (e: 'toggle-theme'): void;
   (e: 'toggle-immersive'): void;
   (e: 'toggle-menu'): void;
   (e: 'navigate-home'): void;
@@ -24,13 +22,13 @@ const searchQuery = ref('');
 const searchVisible = ref(false);
 const searchInputRef = ref<HTMLInputElement>();
 const activeIndex = ref(-1);
-let searchFrame: number | undefined;
 
 const filteredNotes = computed(() => {
   const q = searchQuery.value.trim().toLowerCase();
   if (!q) {
     return [];
   }
+
   return noteFiles
     .filter((note) => note.title.toLowerCase().includes(q))
     .slice(0, 8);
@@ -86,7 +84,6 @@ function handleKeydown(event: KeyboardEvent) {
       router.push(selected.routePath);
       hideSearch();
     }
-    return;
   }
 }
 
@@ -137,21 +134,18 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown);
-  if (searchFrame !== undefined) {
-    window.cancelAnimationFrame(searchFrame);
-  }
 });
 </script>
 
 <template>
-  <header class="app-header" :class="{ 'app-header--home': home }">
+  <header class="app-header">
     <div class="header-left">
       <button class="menu-toggle" type="button" aria-label="展开目录" @click="emit('toggle-menu')">
         <IconMenu />
       </button>
       <button class="app-title" type="button" @click="emit('navigate-home')">
-        Daily Notes
-        <span>Markdown 知识库</span>
+        <span class="app-title__name">Daily Notes</span>
+        <span class="app-title__meta">Markdown 知识库</span>
       </button>
     </div>
 
@@ -163,13 +157,13 @@ onBeforeUnmount(() => {
             v-model="searchQuery"
             class="search-input"
             type="search"
-            placeholder="搜索文章…"
+            placeholder="搜索文章"
             autocomplete="off"
             @focus="showSearch"
             @input="handleSearchInput"
             @keydown="handleInputKeydown"
           />
-          <kbd class="search-kbd">⌘K</kbd>
+          <kbd class="search-kbd">Ctrl K</kbd>
         </div>
         <ul v-if="searchVisible && filteredNotes.length" class="search-results" role="listbox">
           <li
@@ -196,8 +190,8 @@ onBeforeUnmount(() => {
         v-if="showImmersiveButton"
         class="header-immersive-toggle"
         type="button"
-        aria-label="进入沉浸式阅读"
-        title="进入沉浸式阅读"
+        aria-label="进入沉浸阅读"
+        title="进入沉浸阅读"
         @click="emit('toggle-immersive')"
       >
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -208,205 +202,130 @@ onBeforeUnmount(() => {
         </svg>
         <span>沉浸阅读</span>
       </button>
-      <ThemeToggle :theme="theme" @toggle="emit('toggle-theme')" />
     </div>
   </header>
 </template>
 
 <style scoped>
 .app-header {
+  min-height: var(--header-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px clamp(16px, 4vw, 40px);
+  padding: 0 12px;
   border-bottom: 1px solid var(--panel-border);
-  background: color-mix(in srgb, var(--app-bg) 86%, transparent);
-  backdrop-filter: blur(18px);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  min-height: var(--header-height);
-}
-
-.app-header--home {
-  --panel-bg: rgba(255, 255, 255, 0.06);
-  --panel-muted: rgba(255, 255, 255, 0.1);
-  --panel-border: rgba(255, 255, 255, 0.12);
-  --text-primary: #f4f4f7;
-  --text-secondary: rgba(244, 244, 247, 0.72);
-  --text-muted: rgba(244, 244, 247, 0.46);
-  --accent: #ff4a3d;
-  --accent-soft: rgba(255, 74, 61, 0.13);
-  --accent-hover: rgba(255, 74, 61, 0.2);
-  border-bottom-color: rgba(255, 255, 255, 0.08);
-  background: rgba(8, 8, 13, 0.78);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24);
-}
-
-.app-header--home .app-title {
-  color: #fff;
-}
-
-.app-header--home .app-title::before {
-  content: '';
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  background:
-    linear-gradient(135deg, #ff3b30, #ff7a52),
-    var(--accent);
-  box-shadow: 0 0 22px rgba(255, 59, 48, 0.28);
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.app-header--home .app-title {
+  background: #181818;
   position: relative;
-  padding-left: 44px;
+  z-index: 10;
 }
 
-.app-header--home .app-title span {
-  color: rgba(244, 244, 247, 0.58);
-}
-
-.app-header--home .search-input {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: #fff;
-}
-
-.app-header--home .search-input:focus {
-  border-color: rgba(255, 91, 80, 0.66);
-  box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.14);
-}
-
-.app-header--home .search-results,
-.app-header--home .search-empty {
-  background: rgba(18, 18, 27, 0.96);
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.46);
-}
-
-.app-header--home :deep(.theme-toggle) {
-  width: 38px;
-  justify-content: center;
-  padding: 8px;
-}
-
-.app-header--home :deep(.theme-toggle span) {
-  display: none;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
+.header-left,
 .header-actions {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
+  gap: 8px;
+  min-width: 0;
 }
 
+.header-actions {
+  flex: 0 0 auto;
+  min-width: 110px;
+  justify-content: flex-end;
+}
+
+.menu-toggle,
 .header-immersive-toggle {
-  min-height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 0 13px;
-  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--panel-border));
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--accent-soft) 36%, var(--panel-bg));
-  color: var(--accent);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1;
-  white-space: nowrap;
   transition:
     background var(--transition-base),
     border-color var(--transition-base),
-    box-shadow var(--transition-base),
-    transform var(--transition-base);
-}
-
-.header-immersive-toggle svg {
-  width: 15px;
-  height: 15px;
-  flex: 0 0 auto;
-}
-
-.header-immersive-toggle:hover {
-  border-color: color-mix(in srgb, var(--accent) 58%, var(--panel-border));
-  background: var(--accent-soft);
-  box-shadow: 0 10px 26px rgba(62, 49, 38, 0.12);
-  transform: translateY(-1px);
+    color var(--transition-base);
 }
 
 .menu-toggle {
-  width: 38px;
-  height: 38px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--panel-border);
-  background: var(--panel-bg);
+  width: 34px;
+  height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: border-color var(--transition-base), background var(--transition-base);
+  border-radius: 4px;
 }
 
-.menu-toggle:hover {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--panel-border));
-  background: var(--accent-soft);
+.menu-toggle:hover,
+.header-immersive-toggle:hover {
+  background: var(--panel-muted);
+  border-color: var(--panel-border);
+  color: var(--text-primary);
 }
 
 .app-title {
-  font-size: 18px;
-  font-weight: 650;
-  color: var(--text-primary);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  min-width: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
   padding: 0;
-  background: none;
-  border: none;
-  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
   cursor: pointer;
+  text-align: left;
 }
 
-.app-title span {
-  font-size: 12px;
+.app-title__name {
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.app-title__meta {
   color: var(--text-muted);
+  font-size: 12px;
   font-weight: 500;
+}
+
+.header-immersive-toggle {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.header-immersive-toggle svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
 }
 
 .app-title:focus-visible,
 .menu-toggle:focus-visible,
 .header-immersive-toggle:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
 
-/* Search */
 .header-center {
   flex: 1;
   display: flex;
   justify-content: center;
+  min-width: 0;
   padding: 0 clamp(12px, 4vw, 32px);
 }
 
 .search-box {
   position: relative;
-  width: 100%;
-  max-width: 440px;
+  width: min(460px, 100%);
 }
 
 .search-input-wrap {
@@ -417,18 +336,20 @@ onBeforeUnmount(() => {
 
 .search-input {
   width: 100%;
-  height: 36px;
-  padding: 0 48px 0 36px;
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-sm);
-  background: var(--panel-bg);
-  color: var(--text-primary);
-  font-size: 14px;
-  outline: none;
-  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+  height: 30px;
+  padding: 0 58px 0 34px;
   box-sizing: border-box;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  outline: none;
+  background: #252526;
+  color: var(--text-primary);
+  font-size: 13px;
   appearance: none;
   -webkit-appearance: none;
+  transition:
+    border-color var(--transition-base),
+    box-shadow var(--transition-base);
 }
 
 .search-input::placeholder {
@@ -436,67 +357,69 @@ onBeforeUnmount(() => {
 }
 
 .search-input:focus {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--panel-border));
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
-/* Search icon via background pseudo-element */
 .search-input-wrap::before {
   content: '';
   position: absolute;
-  left: 11px;
+  left: 12px;
   top: 50%;
-  transform: translateY(-50%);
-  width: 15px;
-  height: 15px;
-  background: transparent;
-  border: 2px solid var(--text-muted);
+  width: 12px;
+  height: 12px;
+  border: 1.8px solid var(--text-muted);
   border-radius: 50%;
+  transform: translateY(-50%);
   pointer-events: none;
 }
 
 .search-input-wrap::after {
   content: '';
   position: absolute;
-  left: 23px;
-  top: calc(50% + 2px);
-  transform: translateY(-50%) rotate(45deg);
+  left: 22px;
+  top: calc(50% + 5px);
   width: 6px;
-  height: 2px;
+  height: 1.8px;
   background: var(--text-muted);
+  transform: translateY(-50%) rotate(45deg);
   pointer-events: none;
 }
 
 .search-kbd {
   position: absolute;
-  right: 8px;
+  right: 7px;
   top: 50%;
   transform: translateY(-50%);
-  padding: 2px 6px;
-  border: 1px solid var(--panel-border);
-  border-radius: 5px;
-  background: var(--panel-muted);
+  padding: 2px 5px;
+  border: 1px solid #3c3c3c;
+  border-radius: 3px;
+  background: #1f1f1f;
   color: var(--text-muted);
-  font-size: 11px;
   font-family: inherit;
-  line-height: 1.4;
+  font-size: 10px;
+  line-height: 1.2;
   pointer-events: none;
   white-space: nowrap;
 }
 
-.search-results {
+.search-results,
+.search-empty {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  background: var(--panel-bg);
+  z-index: 100;
   border: 1px solid var(--panel-border);
-  border-radius: var(--radius-md);
-  box-shadow: 0 18px 45px rgba(62, 49, 38, 0.14);
+  border-radius: 4px;
+  background: #252526;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.34);
+}
+
+.search-results {
   list-style: none;
   margin: 0;
-  padding: 6px;
-  z-index: 100;
+  padding: 5px;
   overflow: hidden;
 }
 
@@ -504,50 +427,41 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
+  padding: 8px 9px;
+  border-radius: 3px;
   cursor: pointer;
   transition: background var(--transition-base);
 }
 
 .search-result__path {
-  font-size: 11px;
   color: var(--text-muted);
+  font-size: 11px;
   font-weight: 600;
 }
 
 .search-result__title {
-  font-size: 14px;
-  color: var(--text-primary);
-  font-weight: 500;
   overflow: hidden;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .search-result:hover,
 .search-result--active {
-  background: var(--accent-soft);
+  background: var(--panel-muted);
 }
 
 .search-result--active .search-result__title {
-  color: var(--accent);
+  color: #ffffff;
 }
 
 .search-empty {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
-  padding: 14px 12px;
-  background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-md);
-  box-shadow: 0 18px 45px rgba(62, 49, 38, 0.14);
+  padding: 12px;
   color: var(--text-muted);
   font-size: 13px;
   text-align: center;
-  z-index: 100;
 }
 
 @media (min-width: 900px) {
@@ -560,38 +474,34 @@ onBeforeUnmount(() => {
   .header-center {
     display: none;
   }
+
+  .header-actions {
+    min-width: auto;
+  }
 }
 
 @media (max-width: 600px) {
   .app-header {
-    padding: 10px 12px;
-    gap: 10px;
-  }
-
-  .header-left {
-    min-width: 0;
+    padding: 0 10px;
   }
 
   .app-title {
-    min-width: 0;
-    font-size: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
   }
 
-  .app-title span {
-    max-width: 160px;
+  .app-title__meta {
+    max-width: 150px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .header-actions {
-    gap: 8px;
-  }
-
   .header-immersive-toggle {
-    width: 38px;
-    min-width: 38px;
-    height: 38px;
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
     padding: 0;
   }
 

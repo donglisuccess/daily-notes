@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ElDrawer } from 'element-plus';
 import 'element-plus/es/components/drawer/style/css';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import AppHeader from './components/AppHeader.vue';
@@ -9,15 +9,12 @@ import ContentViewer from './components/ContentViewer.vue';
 import SidebarTree from './components/SidebarTree.vue';
 import TocSidebar from './components/TocSidebar.vue';
 import { useNotes } from './composables/useNotes';
-import { useTheme } from './composables/useTheme';
 import { NOTE_ROUTE_PREFIX } from './router';
 import type { LoadedNote, OutlineHeading } from './types/note';
 
 const notes = useNotes();
 const route = useRoute();
 const router = useRouter();
-const { theme, toggleTheme } = useTheme();
-
 const currentNote = ref<LoadedNote | null>(null);
 const headings = ref<OutlineHeading[]>([]);
 const activeHeading = ref<string | null>(null);
@@ -25,29 +22,16 @@ const isMobileNavOpen = ref(false);
 const isImmersiveReading = ref(false);
 const currentPath = computed(() => (route.path.startsWith(NOTE_ROUTE_PREFIX) ? route.path : ''));
 let loadToken = 0;
-const showToc = computed(() => Boolean(currentNote.value));
 const isImmersiveActive = computed(() => Boolean(currentNote.value && isImmersiveReading.value));
 const noteNavigation = computed(() =>
   currentNote.value ? notes.getNoteNavigation(currentNote.value.routePath) : null
-);
-const isHome = computed(() => !currentPath.value && !currentNote.value);
-
-watch(
-  isHome,
-  (value) => {
-    if (typeof document === 'undefined') {
-      return;
-    }
-
-    document.documentElement.classList.toggle('home-page-active', value);
-  },
-  { immediate: true }
 );
 
 watch(
   () => currentPath.value,
   async (value) => {
     if (!value) {
+      loadToken += 1;
       currentNote.value = null;
       isImmersiveReading.value = false;
       notes.rememberRoute('');
@@ -55,6 +39,7 @@ watch(
     }
 
     if (!notes.isValidRoute(value)) {
+      loadToken += 1;
       router.replace('/');
       return;
     }
@@ -73,23 +58,6 @@ watch(
   },
   { immediate: true }
 );
-
-onMounted(() => {
-  if (route.path === '/') {
-    const saved = notes.getSavedRoute();
-    if (saved) {
-      router.replace(saved);
-    }
-  }
-});
-
-onBeforeUnmount(() => {
-  if (typeof document === 'undefined') {
-    return;
-  }
-
-  document.documentElement.classList.remove('home-page-active');
-});
 
 const handleHeadingsUpdate = (value: OutlineHeading[]) => {
   headings.value = value;
@@ -144,16 +112,10 @@ const handleExitImmersive = () => {
 </script>
 
 <template>
-  <div
-    class="app-shell"
-    :class="{ 'app-shell--immersive': isImmersiveActive, 'app-shell--home': isHome }"
-  >
+  <div class="app-shell" :class="{ 'app-shell--immersive': isImmersiveActive }">
     <AppHeader
       v-if="!isImmersiveActive"
-      :theme="theme"
-      :home="isHome"
       :show-immersive-button="Boolean(currentNote)"
-      @toggle-theme="toggleTheme"
       @toggle-immersive="handleToggleImmersive"
       @toggle-menu="handleOpenMobileNav"
       @navigate-home="handleNavigateHome"
@@ -162,9 +124,8 @@ const handleExitImmersive = () => {
     <div
       class="layout"
       :class="{
-        'layout--no-toc': !showToc,
         'layout--immersive': isImmersiveActive,
-        'layout--home': isHome
+        'layout--home': !currentNote
       }"
     >
       <section v-if="!isImmersiveActive" class="sidebar-panel panel">
@@ -188,7 +149,8 @@ const handleExitImmersive = () => {
       />
 
       <TocSidebar
-        v-if="showToc && !isImmersiveActive"
+        v-if="currentNote && !isImmersiveActive"
+        title="文章大纲"
         :headings="headings"
         :active-id="activeHeading"
         @navigate="handleNavigate"

@@ -106,11 +106,12 @@ function createRenderer(slugger: (value: string) => string, headings: OutlineHea
     const rendered = defaultFenceRule
       ? defaultFenceRule(tokens, idx, options, env, self)
       : `<pre><code>${md.utils.escapeHtml(token.content)}</code></pre>`;
+    const langLabel = formatCodeLanguage(lang);
 
     return [
       `<div class="code-block" data-code-lang="${md.utils.escapeHtml(lang)}">`,
       '<div class="code-block__bar">',
-      `<span class="code-block__lang">${md.utils.escapeHtml(lang)}</span>`,
+      `<span class="code-block__lang">${md.utils.escapeHtml(langLabel)}</span>`,
       '<button class="code-copy" type="button" data-copy-code aria-label="复制代码">复制</button>',
       '</div>',
       rendered,
@@ -119,4 +120,13 @@ function createRenderer(slugger: (value: string) => string, headings: OutlineHea
   };
 
   return md;
+}
+
+function formatCodeLanguage(lang: string) {
+  const normalized = lang.trim().toLowerCase();
+  if (!normalized || normalized === 'text' || normalized === 'txt' || normalized === 'plain') {
+    return 'Plain Text';
+  }
+
+  return lang;
 }

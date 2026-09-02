@@ -53,6 +53,7 @@ const handleNavigateHome = () => {
 
 <template>
   <div class="sidebar-tree-wrapper">
+    <div class="sidebar-section-title">全部文章</div>
     <button class="sidebar-home" :class="{ active: !currentNodeKey }" type="button" @click="handleNavigateHome">
       <span class="sidebar-home-mark" aria-hidden="true"></span>
       <span class="sidebar-home-label">首页</span>
@@ -85,38 +86,56 @@ const handleNavigateHome = () => {
 .sidebar-tree-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 4px;
+}
+
+.sidebar-section-title {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
 }
 
 .sidebar-home {
+  width: 100%;
+  min-height: 28px;
   display: inline-flex;
   align-items: center;
-  gap: 9px;
-  border-radius: var(--radius-sm);
+  gap: 8px;
+  border-radius: 4px;
   border: 1px solid transparent;
-  padding: 9px 10px;
+  padding: 4px 8px;
   background: transparent;
-  color: var(--text-primary);
+  color: #cccccc;
   cursor: pointer;
-  font-weight: 600;
-  transition: border-color var(--transition-base), background var(--transition-base), color var(--transition-base);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  transition:
+    background var(--transition-base),
+    color var(--transition-base);
 }
 
 .sidebar-home-mark {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--text-muted);
+  width: 12px;
+  height: 12px;
+  border: 2px solid #cccccc;
+  border-radius: 50%;
 }
 
 .sidebar-home.active {
-  background: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
-  color: var(--accent);
+  background: #37373d;
+  color: #ffffff;
 }
 
 .sidebar-home.active .sidebar-home-mark {
-  background: var(--accent);
+  border-color: #ffffff;
+  background: #ffffff;
 }
 
 .sidebar-home:hover {
@@ -124,19 +143,19 @@ const handleNavigateHome = () => {
 }
 
 .sidebar-tree {
-  --el-tree-node-hover-bg-color: var(--panel-muted);
+  --el-tree-node-hover-bg-color: #2a2d2e;
   background: transparent;
-  color: var(--text-primary);
+  color: #cccccc;
   font-size: 14px;
 }
 
 .tree-node {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   min-width: 0;
-  padding: 5px 2px;
-  border-radius: var(--radius-sm);
+  padding: 3px 2px;
+  border-radius: 4px;
 }
 
 .tree-label {
@@ -147,31 +166,32 @@ const handleNavigateHome = () => {
 }
 
 .sidebar-tree :deep(.el-tree-node__content) {
-  min-height: 34px;
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
+  min-height: 28px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #cccccc;
 }
 
 .sidebar-tree :deep(.el-tree-node.is-current > .el-tree-node__content) {
-  background: var(--accent-soft);
+  background: #37373d;
 }
 
 .sidebar-tree :deep(.el-tree-node.is-current > .el-tree-node__content .tree-icon),
 .sidebar-tree :deep(.el-tree-node.is-current > .el-tree-node__content .tree-label) {
-  color: var(--accent);
+  color: #ffffff;
 }
 
 .sidebar-tree :deep(.el-tree-node__expand-icon) {
-  color: var(--text-muted);
+  color: #858585;
 }
 
 .tree-icon {
   flex: 0 0 auto;
-  color: var(--text-muted);
+  color: #c5c5c5;
 }
 
 .tree-node.type-folder .tree-icon {
-  color: color-mix(in srgb, var(--accent) 72%, var(--text-muted));
+  color: #dcb67a;
 }
 
 .tree-node.type-file .tree-label {
