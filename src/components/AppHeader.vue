@@ -7,6 +7,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 
 defineProps<{
   theme: 'light' | 'dark';
+  home?: boolean;
   showImmersiveButton?: boolean;
 }>();
 const emit = defineEmits<{
@@ -143,7 +144,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <header class="app-header">
+  <header class="app-header" :class="{ 'app-header--home': home }">
     <div class="header-left">
       <button class="menu-toggle" type="button" aria-label="展开目录" @click="emit('toggle-menu')">
         <IconMenu />
@@ -225,6 +226,77 @@ onBeforeUnmount(() => {
   top: 0;
   z-index: 10;
   min-height: var(--header-height);
+}
+
+.app-header--home {
+  --panel-bg: rgba(255, 255, 255, 0.06);
+  --panel-muted: rgba(255, 255, 255, 0.1);
+  --panel-border: rgba(255, 255, 255, 0.12);
+  --text-primary: #f4f4f7;
+  --text-secondary: rgba(244, 244, 247, 0.72);
+  --text-muted: rgba(244, 244, 247, 0.46);
+  --accent: #ff4a3d;
+  --accent-soft: rgba(255, 74, 61, 0.13);
+  --accent-hover: rgba(255, 74, 61, 0.2);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+  background: rgba(8, 8, 13, 0.78);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24);
+}
+
+.app-header--home .app-title {
+  color: #fff;
+}
+
+.app-header--home .app-title::before {
+  content: '';
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, #ff3b30, #ff7a52),
+    var(--accent);
+  box-shadow: 0 0 22px rgba(255, 59, 48, 0.28);
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.app-header--home .app-title {
+  position: relative;
+  padding-left: 44px;
+}
+
+.app-header--home .app-title span {
+  color: rgba(244, 244, 247, 0.58);
+}
+
+.app-header--home .search-input {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.app-header--home .search-input:focus {
+  border-color: rgba(255, 91, 80, 0.66);
+  box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.14);
+}
+
+.app-header--home .search-results,
+.app-header--home .search-empty {
+  background: rgba(18, 18, 27, 0.96);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.46);
+}
+
+.app-header--home :deep(.theme-toggle) {
+  width: 38px;
+  justify-content: center;
+  padding: 8px;
+}
+
+.app-header--home :deep(.theme-toggle span) {
+  display: none;
 }
 
 .header-left {

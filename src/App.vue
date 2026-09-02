@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ElDrawer } from 'element-plus';
 import 'element-plus/es/components/drawer/style/css';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import AppHeader from './components/AppHeader.vue';
@@ -29,6 +29,19 @@ const showToc = computed(() => Boolean(currentNote.value));
 const isImmersiveActive = computed(() => Boolean(currentNote.value && isImmersiveReading.value));
 const noteNavigation = computed(() =>
   currentNote.value ? notes.getNoteNavigation(currentNote.value.routePath) : null
+);
+const isHome = computed(() => !currentPath.value && !currentNote.value);
+
+watch(
+  isHome,
+  (value) => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    document.documentElement.classList.toggle('home-page-active', value);
+  },
+  { immediate: true }
 );
 
 watch(
@@ -68,6 +81,14 @@ onMounted(() => {
       router.replace(saved);
     }
   }
+});
+
+onBeforeUnmount(() => {
+  if (typeof document === 'undefined') {
+    return;
+  }
+
+  document.documentElement.classList.remove('home-page-active');
 });
 
 const handleHeadingsUpdate = (value: OutlineHeading[]) => {
@@ -123,10 +144,14 @@ const handleExitImmersive = () => {
 </script>
 
 <template>
-  <div class="app-shell" :class="{ 'app-shell--immersive': isImmersiveActive }">
+  <div
+    class="app-shell"
+    :class="{ 'app-shell--immersive': isImmersiveActive, 'app-shell--home': isHome }"
+  >
     <AppHeader
       v-if="!isImmersiveActive"
       :theme="theme"
+      :home="isHome"
       :show-immersive-button="Boolean(currentNote)"
       @toggle-theme="toggleTheme"
       @toggle-immersive="handleToggleImmersive"
@@ -134,7 +159,14 @@ const handleExitImmersive = () => {
       @navigate-home="handleNavigateHome"
     />
 
-    <div class="layout" :class="{ 'layout--no-toc': !showToc, 'layout--immersive': isImmersiveActive }">
+    <div
+      class="layout"
+      :class="{
+        'layout--no-toc': !showToc,
+        'layout--immersive': isImmersiveActive,
+        'layout--home': isHome
+      }"
+    >
       <section v-if="!isImmersiveActive" class="sidebar-panel panel">
         <div class="sidebar-scroll">
           <SidebarTree

@@ -73,6 +73,25 @@ const categoryCount = computed(() => {
   const roots = new Set(noteFiles.map((n) => n.segments[0]));
   return roots.size;
 });
+const primaryNote = computed(() => noteFiles[0] ?? null);
+const featuredNotes = computed(() => noteFiles.slice(0, 3));
+const categoryPreviewItems = computed(() => {
+  const counts = new Map<string, number>();
+
+  noteFiles.forEach((note) => {
+    const root = note.segments[0] || '未分类';
+    counts.set(root, (counts.get(root) ?? 0) + 1);
+  });
+
+  return Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh-CN'))
+    .slice(0, 4)
+    .map(([name, count], index) => ({
+      name,
+      count,
+      tone: ['red', 'green', 'blue', 'gold'][index] ?? 'red'
+    }));
+});
 const goalProgressItems = computed(() =>
   [
     {
@@ -586,6 +605,14 @@ function handleNavigateNote(routePath: string) {
   emit('navigate-note', routePath);
 }
 
+function handleStartReading() {
+  if (!primaryNote.value) {
+    return;
+  }
+
+  handleNavigateNote(primaryNote.value.routePath);
+}
+
 function getReadingTimeLabel(source: string) {
   const codeBlocks = source.match(/```[\s\S]*?```/g) ?? [];
   const codeLineCount = codeBlocks.reduce((total, block) => {
@@ -827,40 +854,121 @@ onBeforeUnmount(() => {
         </div>
       </template>
       <div v-else class="intro-panel">
-        <section class="intro-hero">
-          <div class="intro-hero__badge">
-            <span class="intro-hero__dot" aria-hidden="true"></span>
-            {{ articleCount }} 篇文章 · {{ categoryCount }} 个分类
-          </div>
-          <h1 class="intro-hero__title">
-            <span class="intro-hero__title-line">一处安静的</span>
-            <span class="intro-hero__title-line intro-hero__title-line--accent">Markdown 知识库</span>
-          </h1>
-          <p class="intro-motto">知不足而奋进，望远山而前行</p>
-          <p class="intro-description">
-            用本地 Markdown 管理文章、学习记录和工程笔记。<br />左侧选择文档，右侧自动生成大纲，阅读时保持轻盈、清晰和专注。
-          </p>
-          <div class="intro-hero__actions">
-            <span class="intro-hero__hint">← 从左侧目录开始阅读</span>
+        <section class="intro-hero" aria-labelledby="intro-title">
+          <div class="intro-hero__copy">
+            <div class="intro-hero__badge">
+              <img src="/favicon.svg" alt="" aria-hidden="true" />
+              <span>Local Markdown Workspace</span>
+            </div>
+            <h1 id="intro-title" class="intro-hero__title">Daily Notes</h1>
+            <p class="intro-motto">知不足而奋进，望远山而前行</p>
+            <p class="intro-description">
+              面向工程学习、AI 实践、运维部署与投资复盘的个人知识库。
+            </p>
+
+            <div class="intro-hero__actions">
+              <button
+                v-if="primaryNote"
+                class="intro-cta intro-cta--primary"
+                type="button"
+                @click="handleStartReading"
+              >
+                <span>开始阅读</span>
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12h14" />
+                  <path d="m13 6 6 6-6 6" />
+                </svg>
+              </button>
+              <button
+                v-if="featuredNotes[1]"
+                class="intro-cta intro-cta--ghost"
+                type="button"
+                @click="handleNavigateNote(featuredNotes[1].routePath)"
+              >
+                <span>随便看看</span>
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+            </div>
+
+            <section class="intro-stats" aria-label="知识库概览">
+              <div class="intro-stat">
+                <span class="intro-stat__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7Z" />
+                    <path d="M14 2v5h5" />
+                    <path d="M9 13h6" />
+                    <path d="M9 17h4" />
+                  </svg>
+                </span>
+                <span class="intro-stat__value">{{ articleCount }}</span>
+                <span class="intro-stat__label">文章总数</span>
+              </div>
+              <div class="intro-stat">
+                <span class="intro-stat__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+                    <path d="M8 13h8" />
+                  </svg>
+                </span>
+                <span class="intro-stat__value">{{ categoryCount }}</span>
+                <span class="intro-stat__label">分类目录</span>
+              </div>
+              <div class="intro-stat">
+                <span class="intro-stat__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 19.5V5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-1.5Z" />
+                    <path d="M8 7h6" />
+                    <path d="M8 11h8" />
+                    <path d="M8 15h5" />
+                  </svg>
+                </span>
+                <span class="intro-stat__value">MD</span>
+                <span class="intro-stat__label">内容格式</span>
+              </div>
+            </section>
           </div>
 
-          <section class="intro-stats" aria-label="知识库概览">
-            <div class="intro-stat">
-              <span class="intro-stat__icon" aria-hidden="true">📄</span>
-              <span class="intro-stat__value">{{ articleCount }}</span>
-              <span class="intro-stat__label">文章总数</span>
+          <aside class="intro-visual" aria-label="知识库预览">
+            <div class="intro-visual__bar">
+              <span class="intro-window-dot"></span>
+              <span class="intro-window-dot"></span>
+              <span class="intro-window-dot"></span>
+              <strong>daily-notes</strong>
             </div>
-            <div class="intro-stat">
-              <span class="intro-stat__icon" aria-hidden="true">📁</span>
-              <span class="intro-stat__value">{{ categoryCount }}</span>
-              <span class="intro-stat__label">分类目录</span>
+            <div class="intro-visual__body">
+              <div class="intro-console">
+                <span class="intro-console__label">workspace</span>
+                <strong>{{ articleCount }} notes indexed</strong>
+                <p>{{ categoryCount }} categories · markdown source · local assets</p>
+              </div>
+              <div class="intro-category-strip" aria-label="分类概览">
+                <span
+                  v-for="category in categoryPreviewItems"
+                  :key="category.name"
+                  class="intro-category"
+                  :class="`intro-category--${category.tone}`"
+                >
+                  <strong>{{ category.name }}</strong>
+                  <small>{{ category.count }} 篇</small>
+                </span>
+              </div>
+              <div class="intro-note-stack">
+                <button
+                  v-for="noteItem in featuredNotes"
+                  :key="noteItem.routePath"
+                  class="intro-note-card"
+                  type="button"
+                  @click="handleNavigateNote(noteItem.routePath)"
+                >
+                  <span>{{ noteItem.segments.slice(0, -1).join(' / ') || 'Daily Notes' }}</span>
+                  <strong>{{ noteItem.title }}</strong>
+                </button>
+              </div>
             </div>
-            <div class="intro-stat">
-              <span class="intro-stat__icon" aria-hidden="true">🔖</span>
-              <span class="intro-stat__value">Markdown</span>
-              <span class="intro-stat__label">纯文本格式</span>
-            </div>
-          </section>
+          </aside>
         </section>
 
         <section class="intro-goals" aria-label="写作目标进度">
@@ -1009,6 +1117,11 @@ onBeforeUnmount(() => {
   height: auto;
   max-height: none;
   min-height: calc(100vh - var(--header-height) - 44px);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   overflow: visible;
 }
 
@@ -1066,6 +1179,7 @@ onBeforeUnmount(() => {
   height: auto;
   overflow: visible;
   padding-right: 0;
+  color: #f4f4f7;
 }
 
 .content-scroll--immersive {
@@ -1406,109 +1520,178 @@ onBeforeUnmount(() => {
 }
 
 .intro-panel {
-  max-width: 1120px;
+  width: 100%;
+  max-width: 1280px;
   min-height: 100%;
   margin: 0 auto;
-  padding: clamp(20px, 3vh, 32px) clamp(8px, 3vw, 36px);
+  padding: 28px clamp(12px, 3vw, 40px) 56px;
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
-  grid-template-areas:
-    'hero goals'
-    'features features';
-  gap: clamp(20px, 3.4vw, 36px);
-  align-content: center;
+  grid-template-columns: 1fr;
+  gap: 22px;
+  color: #f4f4f7;
 }
 
 .intro-hero {
-  grid-area: hero;
-  max-width: none;
-  padding: 0;
+  min-height: 560px;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 0.98fr) minmax(360px, 0.86fr);
+  align-items: center;
+  gap: 44px;
+  overflow: hidden;
+}
+
+.intro-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 74, 61, 0.75), transparent);
+  opacity: 0.72;
+}
+
+.intro-hero__copy {
+  min-width: 0;
   position: relative;
   z-index: 1;
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  justify-content: center;
 }
 
 .intro-hero__badge {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: fit-content;
-  margin-bottom: 14px;
-  padding: 6px 16px 6px 12px;
-  border: 1px solid var(--panel-border);
+  margin-bottom: 22px;
+  padding: 7px 18px 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--panel-bg) 82%, var(--panel-muted));
-  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(244, 244, 247, 0.68);
   font-size: 13px;
   font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-.intro-hero__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
-  display: inline-block;
-  animation: pulse-dot 2.4s ease-in-out infinite;
+.intro-hero__badge img {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  box-shadow: 0 0 18px rgba(255, 74, 61, 0.32);
 }
 
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.55; transform: scale(0.82); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.82);
+  }
 }
 
 .intro-hero__title {
   margin: 0;
-  max-width: 680px;
-  font-size: clamp(34px, 4.5vw, 52px);
-  line-height: 1.12;
+  max-width: 720px;
+  font-size: 76px;
+  line-height: 0.96;
   letter-spacing: 0;
-  color: var(--text-primary);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  color: #fff;
+  font-weight: 860;
+  text-shadow: 0 0 34px rgba(255, 74, 61, 0.2);
 }
 
 .intro-hero__title-line--accent {
-  color: var(--accent);
+  color: #ff4a3d;
   font-weight: 700;
 }
 
 .intro-motto {
   max-width: 680px;
-  margin: 14px 0 0;
-  padding-left: 14px;
-  border-left: 3px solid var(--accent);
-  color: var(--text-primary);
-  font-size: clamp(16px, 1.7vw, 20px);
-  font-weight: 650;
+  margin: 22px 0 0;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 720;
   line-height: 1.6;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.96), #ff7a52, rgba(255, 255, 255, 0.92));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .intro-description {
-  max-width: 680px;
+  max-width: 600px;
   margin: 14px 0 0;
-  color: var(--text-secondary);
-  font-size: 16px;
+  color: rgba(244, 244, 247, 0.66);
+  font-size: 17px;
   line-height: 1.7;
 }
 
 .intro-hero__actions {
-  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 30px;
 }
 
-.intro-hero__hint {
-  display: inline-block;
-  padding: 8px 18px;
-  border-radius: 999px;
-  border: 1px dashed var(--panel-border);
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 600;
+.intro-cta {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 8px;
+  padding: 0 24px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 760;
+  line-height: 1;
+  transition:
+    transform 0.24s ease,
+    box-shadow 0.24s ease,
+    border-color 0.24s ease,
+    background 0.24s ease;
+}
+
+.intro-cta svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.intro-cta--primary {
+  background: linear-gradient(135deg, #ff3b30, #ff715d);
+  color: #fff;
+  box-shadow: 0 10px 32px rgba(255, 59, 48, 0.32);
+}
+
+.intro-cta--ghost {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #f4f4f7;
+}
+
+.intro-cta:hover {
+  transform: translateY(-2px);
+}
+
+.intro-cta--primary:hover {
+  box-shadow: 0 14px 38px rgba(255, 59, 48, 0.4);
+}
+
+.intro-cta--ghost:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.intro-cta:focus-visible,
+.intro-note-card:focus-visible {
+  outline: 2px solid #ff715d;
+  outline-offset: 3px;
 }
 
 /* Stats bar */
@@ -1516,7 +1699,7 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
-  margin-top: 26px;
+  margin-top: 34px;
   max-width: 620px;
 }
 
@@ -1524,73 +1707,298 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
-  padding: 14px 15px;
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--panel-bg) 72%, transparent);
+  gap: 7px;
+  min-height: 116px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02));
   text-align: left;
-  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+  transition:
+    border-color 0.24s ease,
+    box-shadow 0.24s ease,
+    transform 0.24s ease;
 }
 
 .intro-stat:hover {
-  border-color: color-mix(in srgb, var(--accent) 32%, var(--panel-border));
-  box-shadow: 0 8px 24px rgba(62, 49, 38, 0.08);
+  border-color: rgba(255, 74, 61, 0.3);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.28);
+  transform: translateY(-3px);
 }
 
 .intro-stat__icon {
-  font-size: 20px;
-  line-height: 1;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(255, 74, 61, 0.12);
+  color: #ff715d;
+}
+
+.intro-stat__icon svg {
+  width: 18px;
+  height: 18px;
 }
 
 .intro-stat__value {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: 24px;
+  font-weight: 820;
+  color: #fff;
   line-height: 1.25;
 }
 
 .intro-stat__label {
   font-size: 12px;
-  color: var(--text-muted);
+  color: rgba(244, 244, 247, 0.48);
   font-weight: 600;
+}
+
+.intro-visual {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 74, 61, 0.12), transparent 48%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.025));
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(16px);
+}
+
+.intro-visual::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent),
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 34px;
+  opacity: 0.48;
+}
+
+.intro-visual__bar {
+  position: relative;
+  z-index: 1;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(244, 244, 247, 0.58);
+  font-size: 12px;
+}
+
+.intro-visual__bar strong {
+  margin-left: 6px;
+  color: rgba(244, 244, 247, 0.78);
+  font-size: 13px;
+}
+
+.intro-window-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #ff5f57;
+}
+
+.intro-window-dot:nth-child(2) {
+  background: #ffbd2e;
+}
+
+.intro-window-dot:nth-child(3) {
+  background: #28c840;
+}
+
+.intro-visual__body {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+
+.intro-console {
+  border-radius: 8px;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.26);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.intro-console__label {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 10px;
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: rgba(255, 74, 61, 0.1);
+  border: 1px solid rgba(255, 74, 61, 0.18);
+  color: #ff715d;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.intro-console strong {
+  display: block;
+  color: #fff;
+  font-size: 28px;
+  line-height: 1.15;
+}
+
+.intro-console p {
+  margin: 8px 0 0;
+  color: rgba(244, 244, 247, 0.52);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.intro-category-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.intro-category {
+  --category-color: #ff715d;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.intro-category::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--category-color);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--category-color) 70%, transparent);
+}
+
+.intro-category--green {
+  --category-color: #48d597;
+}
+
+.intro-category--blue {
+  --category-color: #55b7ff;
+}
+
+.intro-category--gold {
+  --category-color: #f5c84b;
+}
+
+.intro-category strong {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(244, 244, 247, 0.86);
+  font-size: 13px;
+  font-weight: 720;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.intro-category small {
+  flex: 0 0 auto;
+  color: var(--category-color);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.intro-note-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.intro-note-card {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  min-height: 72px;
+  padding: 13px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition:
+    border-color 0.24s ease,
+    background 0.24s ease,
+    transform 0.24s ease;
+}
+
+.intro-note-card:hover {
+  border-color: rgba(255, 74, 61, 0.32);
+  background: rgba(255, 74, 61, 0.08);
+  transform: translateX(4px);
+}
+
+.intro-note-card span,
+.intro-note-card strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.intro-note-card span {
+  color: rgba(244, 244, 247, 0.42);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.intro-note-card strong {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 720;
 }
 
 /* Goal progress */
 .intro-goals {
-  grid-area: goals;
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   margin-top: 0;
-  align-content: center;
 }
 
 .intro-goal {
-  --goal-color: var(--accent);
-  --goal-glow: rgba(62, 49, 38, 0.12);
+  --goal-color: #ff715d;
+  --goal-glow: rgba(255, 74, 61, 0.1);
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--goal-color) 36%, var(--panel-border));
-  border-radius: var(--radius-md);
-  padding: 18px 18px 16px;
+  border: 1px solid color-mix(in srgb, var(--goal-color) 26%, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+  padding: 18px;
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--goal-color) 14%, transparent) 0%, transparent 58%),
-    linear-gradient(180deg, color-mix(in srgb, var(--panel-bg) 92%, var(--panel-muted)) 0%, color-mix(in srgb, var(--panel-bg) 76%, transparent) 100%);
-  box-shadow: 0 14px 30px var(--goal-glow);
+    linear-gradient(135deg, color-mix(in srgb, var(--goal-color) 14%, transparent) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018));
+  box-shadow: 0 18px 42px var(--goal-glow);
   transition:
-    border-color var(--transition-base),
-    box-shadow var(--transition-base),
-    transform var(--transition-base);
+    border-color 0.24s ease,
+    box-shadow 0.24s ease,
+    transform 0.24s ease;
 }
 
 .intro-goal--second {
-  --goal-color: color-mix(in srgb, var(--accent) 54%, var(--hljs-addition));
+  --goal-color: #48d597;
+  --goal-glow: rgba(72, 213, 151, 0.08);
 }
 
 .intro-goal--third {
-  --goal-color: color-mix(in srgb, var(--accent) 46%, var(--hljs-string));
+  --goal-color: #55b7ff;
+  --goal-glow: rgba(85, 183, 255, 0.08);
 }
 
 .intro-goal::before {
@@ -1600,7 +2008,7 @@ onBeforeUnmount(() => {
   left: 0;
   bottom: 0;
   width: 4px;
-  background: linear-gradient(180deg, var(--goal-color), color-mix(in srgb, var(--goal-color) 46%, var(--text-primary)));
+  background: linear-gradient(180deg, var(--goal-color), color-mix(in srgb, var(--goal-color) 46%, #fff));
 }
 
 .intro-goal::after {
@@ -1610,13 +2018,13 @@ onBeforeUnmount(() => {
   z-index: -1;
   background: linear-gradient(120deg, transparent 0%, color-mix(in srgb, var(--goal-color) 9%, transparent) 44%, transparent 78%);
   opacity: 0;
-  transition: opacity var(--transition-base);
+  transition: opacity 0.24s ease;
 }
 
 .intro-goal:hover {
-  border-color: color-mix(in srgb, var(--goal-color) 52%, var(--panel-border));
-  box-shadow: 0 18px 38px color-mix(in srgb, var(--goal-color) 16%, transparent);
-  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--goal-color) 48%, rgba(255, 255, 255, 0.1));
+  box-shadow: 0 22px 54px color-mix(in srgb, var(--goal-color) 14%, transparent);
+  transform: translateY(-4px);
 }
 
 .intro-goal:hover::after {
@@ -1637,7 +2045,7 @@ onBeforeUnmount(() => {
 }
 
 .intro-goal__label {
-  color: var(--text-primary);
+  color: #fff;
   font-size: 13px;
   font-weight: 700;
 }
@@ -1645,7 +2053,7 @@ onBeforeUnmount(() => {
 .intro-goal__date,
 .intro-goal__remaining {
   border-radius: 999px;
-  background: color-mix(in srgb, var(--goal-color) 12%, var(--panel-bg));
+  background: color-mix(in srgb, var(--goal-color) 13%, rgba(255, 255, 255, 0.04));
   color: var(--goal-color);
   font-size: 12px;
   font-weight: 760;
@@ -1664,8 +2072,8 @@ onBeforeUnmount(() => {
 
 .intro-goal__percent {
   color: var(--goal-color);
-  font-size: clamp(34px, 4vw, 46px);
-  font-weight: 760;
+  font-size: 42px;
+  font-weight: 820;
   line-height: 1;
   letter-spacing: 0;
   white-space: nowrap;
@@ -1682,10 +2090,10 @@ onBeforeUnmount(() => {
   height: 10px;
   margin-top: 16px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--goal-color) 22%, var(--panel-border));
+  border: 1px solid color-mix(in srgb, var(--goal-color) 24%, rgba(255, 255, 255, 0.08));
   border-radius: 999px;
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--panel-muted) 72%, transparent), color-mix(in srgb, var(--panel-bg) 82%, transparent));
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025));
 }
 
 .intro-goal__track span {
@@ -1693,65 +2101,88 @@ onBeforeUnmount(() => {
   height: 100%;
   width: 0;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--goal-color), color-mix(in srgb, var(--goal-color) 58%, var(--text-primary)));
+  background: linear-gradient(90deg, var(--goal-color), color-mix(in srgb, var(--goal-color) 58%, #fff));
   box-shadow: 0 0 18px color-mix(in srgb, var(--goal-color) 34%, transparent);
 }
 
 .intro-goal__meta {
   align-items: baseline;
   margin-top: 10px;
-  color: var(--text-muted);
+  color: rgba(244, 244, 247, 0.44);
   font-size: 12px;
   font-weight: 650;
 }
 
 .intro-goal__meta span:first-child {
-  color: var(--text-primary);
+  color: rgba(244, 244, 247, 0.72);
 }
 
 /* Feature cards */
 .intro-grid {
-  grid-area: features;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(18px, 3vw, 32px);
+  gap: 14px;
   margin-top: 0;
-  padding-top: 20px;
-  border-top: 1px solid var(--divider-color);
 }
 
 .intro-card {
-  border: 0;
-  border-radius: 0;
-  padding: 0;
-  background: transparent;
+  position: relative;
+  overflow: hidden;
+  min-height: 154px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 22px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.018));
   display: flex;
-  flex-direction: row;
-  gap: 14px;
+  flex-direction: column;
+  gap: 18px;
   align-items: flex-start;
-  transition: color var(--transition-base);
+  transition:
+    border-color 0.24s ease,
+    box-shadow 0.24s ease,
+    transform 0.24s ease;
+}
+
+.intro-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 18px;
+  right: 18px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 113, 93, 0.75), transparent);
+  opacity: 0;
+  transition: opacity 0.24s ease;
 }
 
 .intro-card:hover {
-  color: var(--accent);
+  border-color: rgba(255, 74, 61, 0.24);
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.28);
+  transform: translateY(-4px);
+}
+
+.intro-card:hover::before {
+  opacity: 1;
 }
 
 .intro-card__icon {
   flex-shrink: 0;
-  width: 36px;
-  height: 36px;
+  width: 46px;
+  height: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--accent-soft) 60%, var(--panel-muted));
-  color: var(--accent);
-  transition: background var(--transition-base), transform var(--transition-base);
+  border-radius: 8px;
+  background: rgba(255, 74, 61, 0.12);
+  color: #ff715d;
+  transition:
+    background 0.24s ease,
+    transform 0.24s ease;
 }
 
 .intro-card:hover .intro-card__icon {
-  background: var(--accent-soft);
-  transform: scale(1.06);
+  background: rgba(255, 74, 61, 0.2);
+  transform: scale(1.04);
 }
 
 .intro-card__body {
@@ -1759,24 +2190,17 @@ onBeforeUnmount(() => {
 }
 
 .intro-card h3 {
-  margin: 0 0 6px;
-  font-size: 15px;
-  color: var(--text-primary);
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: #fff;
+  font-weight: 760;
 }
 
 .intro-card p {
   margin: 0;
-  color: var(--text-secondary);
-  line-height: 1.55;
+  color: rgba(244, 244, 247, 0.6);
+  line-height: 1.65;
   font-size: 13px;
-}
-
-.intro-card code {
-  background: var(--code-bg);
-  border: 1px solid var(--panel-border);
-  border-radius: 6px;
-  padding: 1px 5px;
-  color: var(--code-text-strong);
 }
 
 .markdown-body :deep(img) {
@@ -1872,11 +2296,17 @@ onBeforeUnmount(() => {
 @media (max-width: 1100px) {
   .intro-panel {
     grid-template-columns: 1fr;
-    grid-template-areas:
-      'hero'
-      'goals'
-      'features';
     align-content: start;
+  }
+
+  .intro-hero {
+    min-height: auto;
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .intro-visual {
+    max-width: 760px;
   }
 
   .intro-goals {
@@ -1917,21 +2347,18 @@ onBeforeUnmount(() => {
     bottom: 18px;
   }
 
-  .intro-stats,
   .intro-goals,
   .intro-grid {
     grid-template-columns: 1fr;
   }
 
   .intro-hero__title {
-    font-size: clamp(28px, 7vw, 42px);
+    font-size: 58px;
   }
 
   .intro-card {
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    text-align: center;
+    align-items: flex-start;
+    text-align: left;
   }
 
   .intro-card__body {
@@ -2003,29 +2430,67 @@ onBeforeUnmount(() => {
   }
 
   .intro-panel {
-    padding: 22px 0 48px;
+    padding: 18px 0 44px;
+    gap: 22px;
+  }
+
+  .intro-hero {
     gap: 22px;
   }
 
   .intro-hero__title {
-    font-size: clamp(24px, 7vw, 32px);
-    gap: 4px;
+    font-size: 42px;
+  }
+
+  .intro-motto {
+    font-size: 18px;
   }
 
   .intro-description {
     font-size: 15px;
   }
 
+  .intro-hero__actions {
+    flex-direction: column;
+  }
+
+  .intro-cta {
+    width: 100%;
+  }
+
   .intro-stats {
-    gap: 10px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .intro-stat {
-    padding: 16px 10px 14px;
+    min-height: 104px;
+    padding: 12px 10px;
+  }
+
+  .intro-stat__icon {
+    width: 30px;
+    height: 30px;
   }
 
   .intro-stat__value {
-    font-size: 18px;
+    font-size: 20px;
+  }
+
+  .intro-stat__label {
+    font-size: 11px;
+  }
+
+  .intro-visual__body {
+    padding: 14px;
+  }
+
+  .intro-console strong {
+    font-size: 22px;
+  }
+
+  .intro-category-strip {
+    grid-template-columns: 1fr;
   }
 
   .intro-goal {

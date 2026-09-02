@@ -99,6 +99,65 @@ html[data-theme='dark'] {
     var(--app-bg);
 }
 
+.app-shell--home {
+  --app-bg: #09090f;
+  --panel-bg: #14141d;
+  --panel-muted: #1e1e2a;
+  --panel-border: rgba(255, 255, 255, 0.09);
+  --text-primary: #f4f4f7;
+  --text-secondary: rgba(244, 244, 247, 0.68);
+  --text-muted: rgba(244, 244, 247, 0.44);
+  --accent: #ff4a3d;
+  --accent-soft: rgba(255, 74, 61, 0.13);
+  --accent-hover: rgba(255, 74, 61, 0.22);
+  --divider-color: rgba(255, 255, 255, 0.08);
+  height: auto;
+  min-height: 100vh;
+  background: #09090f;
+  position: relative;
+  isolation: isolate;
+}
+
+.app-shell--home::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 74, 61, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 74, 61, 0.035) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.82), transparent 78%);
+}
+
+.app-shell--home > .app-header,
+.app-shell--home > .layout {
+  position: relative;
+  z-index: 1;
+}
+
+html.home-page-active,
+html.home-page-active body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html.home-page-active::-webkit-scrollbar,
+html.home-page-active body::-webkit-scrollbar,
+.app-shell--home .sidebar-scroll::-webkit-scrollbar,
+.app-shell--home .content-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.app-shell--home .sidebar-scroll,
+.app-shell--home .content-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
 .app-shell--immersive {
   min-height: 100vh;
   height: 100vh;
@@ -120,6 +179,29 @@ html[data-theme='dark'] {
 
 .layout.layout--no-toc {
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+}
+
+.layout.layout--home {
+  height: auto;
+  min-height: calc(100vh - var(--header-height));
+  padding-top: 20px;
+  padding-bottom: 34px;
+  align-items: stretch;
+}
+
+.app-shell--home .sidebar-panel.panel {
+  position: sticky;
+  top: calc(var(--header-height) + 20px);
+  align-self: start;
+  max-height: calc(100vh - var(--header-height) - 40px);
+  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(14px);
+}
+
+.app-shell--home .sidebar-scroll {
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
 }
 
 .layout.layout--immersive {
@@ -557,6 +639,40 @@ html[data-theme='dark'] {
 .mobile-nav-drawer .sidebar-tree {
   max-height: calc(100vh - 140px);
   overflow-y: auto;
+}
+
+html.home-page-active .mobile-nav-drawer {
+  --panel-bg: #14141d;
+  --panel-muted: #1e1e2a;
+  --panel-border: rgba(255, 255, 255, 0.1);
+  --text-primary: #f4f4f7;
+  --text-secondary: rgba(244, 244, 247, 0.68);
+  --text-muted: rgba(244, 244, 247, 0.44);
+  --accent: #ff4a3d;
+  --accent-soft: rgba(255, 74, 61, 0.13);
+  --accent-hover: rgba(255, 74, 61, 0.22);
+  --el-drawer-bg-color: #14141d;
+  background: #14141d;
+  color: #f4f4f7;
+}
+
+html.home-page-active .mobile-nav-drawer .el-drawer__body {
+  background:
+    linear-gradient(135deg, rgba(255, 74, 61, 0.08), transparent 42%),
+    #14141d;
+  color: #f4f4f7;
+}
+
+html.home-page-active .mobile-nav-drawer .sidebar-tree {
+  --el-tree-node-hover-bg-color: rgba(255, 255, 255, 0.08);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html.home-page-active .mobile-nav-drawer .sidebar-tree::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 @media (max-width: 1200px) {
