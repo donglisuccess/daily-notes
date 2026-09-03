@@ -463,40 +463,38 @@ function configureMermaid() {
     return;
   }
 
-  const styles = window.getComputedStyle(document.documentElement);
-  const readColor = (name: string, fallback: string) => styles.getPropertyValue(name).trim() || fallback;
-  const panelBg = readColor('--panel-bg', '#fffaf2');
-  const panelMuted = readColor('--panel-muted', '#f0e9dd');
-  const panelBorder = readColor('--divider-color', 'rgba(87, 70, 54, 0.14)');
-  const textPrimary = readColor('--text-primary', '#2f261f');
-  const textSecondary = readColor('--text-secondary', '#6d6258');
-  const accent = readColor('--accent', '#c96442');
-  const codeBg = readColor('--code-bg', '#ede5d8');
+  const nodeText = '#24313d';
+  const lineColor = '#b8c0c5';
 
   mermaid.initialize({
     startOnLoad: false,
     securityLevel: 'strict',
     theme: 'base',
+    flowchart: {
+      htmlLabels: true,
+      curve: 'linear'
+    },
     themeVariables: {
       background: 'transparent',
-      mainBkg: panelBg,
-      primaryColor: panelBg,
-      primaryTextColor: textPrimary,
-      primaryBorderColor: accent,
-      secondaryColor: panelMuted,
-      secondaryTextColor: textPrimary,
-      secondaryBorderColor: panelBorder,
-      tertiaryColor: codeBg,
-      tertiaryTextColor: textPrimary,
-      tertiaryBorderColor: panelBorder,
-      lineColor: textSecondary,
-      clusterBkg: panelMuted,
-      clusterBorder: panelBorder,
-      edgeLabelBackground: panelBg,
-      nodeTextColor: textPrimary,
-      noteBkgColor: panelMuted,
-      noteTextColor: textPrimary,
-      noteBorderColor: panelBorder,
+      mainBkg: '#eaf6ff',
+      primaryColor: '#eaf6ff',
+      primaryTextColor: nodeText,
+      primaryBorderColor: '#2b8fdb',
+      secondaryColor: '#fff2dc',
+      secondaryTextColor: nodeText,
+      secondaryBorderColor: '#ff7a00',
+      tertiaryColor: '#e9f8ec',
+      tertiaryTextColor: nodeText,
+      tertiaryBorderColor: '#3fa353',
+      lineColor,
+      clusterBkg: '#2a2a2a',
+      clusterBorder: '#3a3a3a',
+      edgeLabelBackground: '#242424',
+      nodeTextColor: nodeText,
+      noteBkgColor: '#fff2dc',
+      noteTextColor: nodeText,
+      noteBorderColor: '#ff7a00',
+      fontSize: '18px',
       fontFamily: "'Inter', 'Noto Sans SC', 'Microsoft YaHei', sans-serif"
     }
   });

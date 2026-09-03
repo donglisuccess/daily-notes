@@ -324,6 +324,50 @@ body {
   max-width: 100%;
   height: auto;
   margin: 0 auto;
+  overflow: visible;
+  shape-rendering: geometricPrecision;
+  text-rendering: geometricPrecision;
+}
+
+.markdown-body .mermaid-block svg text,
+.markdown-body .mermaid-block svg tspan {
+  fill: #24313d !important;
+  stroke: transparent !important;
+  paint-order: stroke fill;
+  font-weight: 700 !important;
+}
+
+.markdown-body .mermaid-block .nodeLabel,
+.markdown-body .mermaid-block .edgeLabel,
+.markdown-body .mermaid-block .label,
+.markdown-body .mermaid-block foreignObject,
+.markdown-body .mermaid-block foreignObject div,
+.markdown-body .mermaid-block foreignObject span,
+.markdown-body .mermaid-block foreignObject p {
+  color: #24313d !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
+  text-shadow: none !important;
+}
+
+.markdown-body .mermaid-block .edgePaths path,
+.markdown-body .mermaid-block .flowchart-link,
+.markdown-body .mermaid-block .relationshipLine {
+  stroke: #b8c0c5 !important;
+  stroke-width: 1.8px !important;
+}
+
+.markdown-body .mermaid-block .arrowheadPath,
+.markdown-body .mermaid-block marker path {
+  fill: #b8c0c5 !important;
+  stroke: #b8c0c5 !important;
+}
+
+.markdown-body .mermaid-block .node rect,
+.markdown-body .mermaid-block .node polygon,
+.markdown-body .mermaid-block .node circle,
+.markdown-body .mermaid-block .node ellipse {
+  shape-rendering: geometricPrecision;
 }
 
 .markdown-body .mermaid-block[aria-busy='true'] {
