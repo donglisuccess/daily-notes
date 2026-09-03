@@ -4,6 +4,9 @@ html[data-theme='dark'] {
   color-scheme: dark;
   --sidebar-width: 282px;
   --toc-width: 330px;
+  --app-sidebar-width: var(--sidebar-width);
+  --app-toc-width: var(--toc-width);
+  --resizer-width: 4px;
   --header-height: 46px;
   --radius-lg: 4px;
   --radius-md: 4px;
@@ -20,6 +23,7 @@ html[data-theme='dark'] {
   --accent: #007acc;
   --accent-soft: rgba(0, 122, 204, 0.18);
   --accent-hover: #37373d;
+  --resizer-active: #007fd4;
   --code-bg: #22343b;
   --blockquote-bg: #242424;
   --divider-color: #2b2b2b;
@@ -72,7 +76,12 @@ body {
   min-height: 0;
   width: 100%;
   display: grid;
-  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--toc-width);
+  grid-template-columns:
+    var(--app-sidebar-width)
+    var(--resizer-width)
+    minmax(0, 1fr)
+    var(--resizer-width)
+    var(--app-toc-width);
   align-items: stretch;
   gap: 0;
   padding: 0;
@@ -85,7 +94,10 @@ body {
 }
 
 .layout.layout--home {
-  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  grid-template-columns:
+    var(--app-sidebar-width)
+    var(--resizer-width)
+    minmax(0, 1fr);
 }
 
 .panel {
@@ -112,7 +124,59 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-right: 1px solid var(--panel-border);
+  border-right: 0;
+}
+
+.layout-resizer {
+  position: relative;
+  z-index: 8;
+  width: var(--resizer-width);
+  min-width: var(--resizer-width);
+  height: 100%;
+  align-self: stretch;
+  background: transparent;
+  cursor: col-resize;
+  outline: none;
+  touch-action: none;
+}
+
+.layout-resizer::before {
+  content: '';
+  position: absolute;
+  inset: 0 -4px;
+}
+
+.layout-resizer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--panel-border);
+  transform: translateX(-50%);
+  transition:
+    background-color 0.12s ease,
+    box-shadow 0.12s ease,
+    width 0.12s ease;
+}
+
+.layout-resizer:hover::after,
+.layout-resizer:focus-visible::after,
+.layout-resizer.is-active::after {
+  width: 2px;
+  background: var(--resizer-active);
+  box-shadow: 0 0 0 1px rgba(0, 127, 212, 0.26);
+}
+
+body.is-layout-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+body.is-layout-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
 }
 
 .sidebar-scroll {
@@ -126,7 +190,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: auto;
-  border-left: 1px solid var(--panel-border);
+  border-left: 0;
   background: #202020;
 }
 
@@ -676,7 +740,8 @@ body {
   }
 
   .sidebar-panel,
-  .toc-panel {
+  .toc-panel,
+  .layout-resizer {
     display: none;
   }
 }
