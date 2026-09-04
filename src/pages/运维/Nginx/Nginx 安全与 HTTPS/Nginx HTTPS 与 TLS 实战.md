@@ -1,5 +1,7 @@
 ## 一、HTTP 和 HTTPS 的本质区别
+
 HTTP 是应用层协议，负责规定：
+
 - 请求方法，如 GET、POST
 - 请求路径
 - 请求头
@@ -8,6 +10,7 @@ HTTP 是应用层协议，负责规定：
 - 响应内容
 
 普通 HTTP 的链路可以简化为：
+
 ```mermaid
 graph TD
     %% 定义节点与连线
@@ -18,15 +21,17 @@ graph TD
     classDef app fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
     classDef transport fill:#fff3e0,stroke:#ef6c00,stroke-width:2px;
     classDef network fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
-    
+  
     %% 应用样式
     class HTTP app;
     class TCP transport;
     class IP network;
 ```
+
 HTTP 内容默认是明文传输的。链路中的中间节点如果能够截获流量，就可能看到甚至修改请求内容。
 
 HTTPS 并不是另一套完全不同的 HTTP，而是：
+
 ```mermaid
 graph TD
     %% 定义节点与连线
@@ -39,36 +44,46 @@ graph TD
     classDef security fill:#ffebee,stroke:#c62828,stroke-width:2px;
     classDef transport fill:#fff3e0,stroke:#ef6c00,stroke-width:2px;
     classDef network fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
-    
+  
     %% 应用样式
     class HTTP app;
     class TLS security;
     class TCP transport;
     class IP network;
 ```
+
 HTTPS 可以粗略理解为：
+
 ```
 HTTPS = HTTP + TLS
 ```
+
 TLS 插在 HTTP 与 TCP 之间，主要解决三个问题：
+
 - **机密性**: 别人截获数据后看不懂。
 - **完整性**：数据被修改后能够被发现。
 - **身份认证**：客户端可以验证自己连接的是不是目标网站。
-因此，HTTPS 并不改变 HTTP 的基本语义。
+  因此，HTTPS 并不改变 HTTP 的基本语义。
 
 使用 HTTPS 后，依然存在：
+
 ```http
 GET /api/users HTTP/1.1
 Host: example.com
 ```
+
 区别是这些 HTTP 内容会先经过 TLS 加密，再通过 TCP 传输。
 
 ## 二、完整的 HTTPS 请求链路
+
 访问：
+
 ```
 https://example.com/api/users?id=1
 ```
+
 大致会经历：
+
 ```mermaid
 graph TD
     %% ========== 阶段一：DNS 解析 ==========
@@ -136,34 +151,45 @@ graph TD
     class Phase5 phase5
     class Phase6 phase6
 ```
+
 最容易忽略的一点是：
+
 > TLS 握手发生在 HTTP 请求进入 server/location 处理之前。
 
 也就是说，Nginx 必须先完成 TLS 握手并解密数据，才知道客户端具体请求了 /api/users 还是 /assets/app.js。
 
 ## 三、为什么同时需要对称加密和非对称加密
+
 ### 3.1 对称加密
+
 对称加密使用同一个密钥完成加密和解密：
+
 ```
 明文 + 会话密钥 → 密文
 密文 + 会话密钥 → 明文
 ```
+
 优点是速度快，适合加密大量 HTTP 数据。
 
 问题是：
+
 > 客户端第一次连接服务器时，如何安全地获得这个密钥？
 
 如果直接通过网络发送密钥，攻击者截获密钥后就能解密后续数据。
 
 ### 3.2 非对称加密
+
 非对称密码体系包含一对相关密钥：
+
 ```
 公钥：可以公开
 私钥：只能由持有者保存
 ```
+
 它可用于密钥交换、身份认证和数字签名。
 
 直观理解是：
+
 - 公钥可以告诉所有人。
 - 私钥必须保存在服务器上。
 - 服务器可以通过私钥证明自己持有对应身份。
@@ -172,7 +198,9 @@ graph TD
 非对称密码运算比对称加密慢，不适合直接加密大量业务数据。
 
 ### 3.3 TLS 为什么结合两者
+
 TLS 的基本思想是：
+
 ```
 非对称密码体系、密钥交换和证书
 → 完成身份验证并安全协商会话密钥
@@ -180,11 +208,15 @@ TLS 的基本思想是：
 对称加密
 → 使用会话密钥加密后续 HTTP 数据
 ```
+
 因此不能简单理解为：
+
 > HTTPS 一直使用服务器公钥加密全部 HTTP 数据。
 
 ## 四、证书、CA 和证书链
+
 ### 4.1 证书是什么
+
 证书可以理解为一份经过签名的电子身份证。
 证书中通常包含：
 
@@ -200,6 +232,7 @@ TLS 的基本思想是：
 证书公开并没有问题，因为证书里保存的是公钥，不是私钥。
 
 ### 4.2 CA 是什么
+
 CA，即**证书颁发机构**，负责验证证书申请者对域名的控制权，然后签发证书。
 
 常见的公开 CA 包括：
@@ -214,9 +247,11 @@ CA 使用自己的私钥对证书进行签名。
 浏览器使用 CA 的公钥验证签名，从而判断证书是否可信。
 
 ### 4.3 证书链
+
 操作系统或浏览器中预装了一批受信任的根证书。
 
 信任关系通常是：
+
 ```
 浏览器信任根 CA
 ↓
@@ -226,93 +261,129 @@ CA 使用自己的私钥对证书进行签名。
 ↓
 浏览器验证整个证书链
 ```
+
 这就是证书链。
 
 服务器通常需要提供：
+
 ```
 网站证书 + 中间 CA 证书
 ```
+
 根证书通常已经存在于客户端信任库中，不需要服务器重复发送。
 
 ### 4.4 自签名证书为什么报警
+
 自签名证书由自己的私钥给自己签名：
+
 ```
 网站证书
 ↓
 签发者还是自己
 ```
+
 它依然可以完成 TLS 加密，但浏览器的信任库里没有这个自建 CA 或证书，因此无法建立可信链。
 
 所以浏览器报警并不是说：
+
 > 连接一定没有加密。
 
 而是说：
+
 > 连接可能已经加密，但浏览器无法确认服务器身份可信。
 
 ### 4.5 域名与证书的关系
+
 证书需要声明自己适用于哪些域名，现代客户端主要检查 SAN：
+
 ```
 Subject Alternative Name
 ```
+
 例如：
+
 ```
 DNS:localhost
 DNS:example.com
 DNS:*.example.com
 IP:127.0.0.1
 ```
+
 如果访问：
+
 ```
 https://api.example.com
 ```
+
 但证书只包含：
+
 ```
 DNS:www.example.com
 ```
+
 即使证书由可信 CA 签发，浏览器仍然会报域名不匹配。
 通配符证书：
+
 ```
 *.example.com
 ```
+
 通常可以匹配：
+
 ```
 api.example.com
 www.example.com
 ```
+
 但通常不能匹配：
+
 ```
 example.com
 a.b.example.com
 ```
+
 ## 五、SNI：一个 IP 为什么能部署多个 HTTPS 域名
+
 同一个 IP 可以部署：
+
 ```
 https://a.example.com
 https://b.example.com
 ```
+
 但 TLS 握手发生在 HTTP 请求之前。此时 Nginx 还没有读到 HTTP 的 Host 请求头，它怎么知道返回哪张证书？
+
 ```
 答案是 SNI：Server Name Indication
 ```
+
 客户端会在 TLS ClientHello 中提前告诉服务器目标域名：
+
 ```
 server_name = a.example.com
 ```
+
 Nginx根据：
+
 ```nginx
 listen 443 ssl;
 server_name a.example.com;
 ```
+
 选择对应的 HTTPS server 和证书。
 因此：
+
 ```
 SNI 用于 TLS 握手阶段选择证书
 Host 用于 HTTP 阶段表达目标主机
 ```
+
 二者出现的阶段不同，不应该混为一谈。
 
 ## 六、生成自签名证书
+
 执行：
+
 ```
 openssl req \
   -x509 \
@@ -324,35 +395,42 @@ openssl req \
   -subj "/CN=localhost" \
   -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
 ```
+
 参数含义：
-| 参数                 | 作用                    |
-| ------------------ | --------------------- |
-| `req`              | 使用证书请求相关功能            |
-| `-x509`            | 直接生成自签名证书，而不是只生成 CSR  |
-| `-nodes`           | 私钥不设置口令，便于 Nginx 自动启动 |
-| `-newkey rsa:2048` | 生成新的 2048 位 RSA 私钥    |
-| `-keyout`          | 私钥输出路径                |
-| `-out`             | 证书输出路径                |
-| `-days 365`        | 有效期 365 天             |
-| `-subj`            | 设置证书主题                |
-| `-addext`          | 添加 SAN 域名和 IP         |
+
+| 参数                 | 作用                                 |
+| -------------------- | ------------------------------------ |
+| `req`              | 使用证书请求相关功能                 |
+| `-x509`            | 直接生成自签名证书，而不是只生成 CSR |
+| `-nodes`           | 私钥不设置口令，便于 Nginx 自动启动  |
+| `-newkey rsa:2048` | 生成新的 2048 位 RSA 私钥            |
+| `-keyout`          | 私钥输出路径                         |
+| `-out`             | 证书输出路径                         |
+| `-days 365`        | 有效期 365 天                        |
+| `-subj`            | 设置证书主题                         |
+| `-addext`          | 添加 SAN 域名和 IP                   |
 生成结果：
 ```
 nginx/certs/localhost.crt
 nginx/certs/localhost.key
 ```
+
 其中：
+
 ```
 localhost.crt → 可以公开的证书
 localhost.key → 必须保护的私钥
 ```
+
 生产环境必须限制私钥的读取权限，不能提交到 Git 仓库。
 
 ## 七、建立最小 HTTPS 服务
+
 先不要配置跳转、SPA 和 API，只建立最小 HTTPS 服务。
 
 创建 nginx/conf.d/default.conf：
-```Nginx
+
+```nginx
 server {
     listen 443 ssl;
     server_name localhost;
@@ -365,11 +443,15 @@ server {
     }
 }
 ```
+
 ### 7.1 listen 443 ssl
-```Nginx
+
+```nginx
 listen 443 ssl;
 ```
+
 含义：
+
 - 监听容器内 TCP 443 端口。
 - 此端口使用 TLS。
 - 客户端需要先完成 TLS 握手。
@@ -378,27 +460,35 @@ listen 443 ssl;
 ssl 不是“把响应内容自动改成 HTTPS”，而是声明这个监听端口期望接收 TLS 流量。
 
 ### 7.2 ssl_certificate
-```Nginx
+
+```nginx
 ssl_certificate /etc/nginx/certs/localhost.crt;
 ```
+
 告诉 Nginx：
+
 - TLS 握手时向客户端发送哪张证书。
 - 证书中包含服务器公钥和域名等信息。
 
 真实 CA 环境中，这里通常使用包含站点证书和中间证书的完整证书链文件，例如 fullchain.pem。
 
 ### 7.3 ssl_certificate_key
-```Nginx
+
+```nginx
 ssl_certificate_key /etc/nginx/certs/localhost.key;
 ```
+
 告诉 Nginx：
+
 - 使用哪一个私钥完成 TLS 身份认证相关的密码学操作。
 - 该私钥必须和证书中的公钥匹配。
-私钥不会发送给客户端。
+  私钥不会发送给客户端。
 
 ## 八、使用 Docker Compose 运行
+
 创建 docker-compose.yml：
-```yml
+
+```yaml
 services:
   nginx:
     image: nginx:1.28-alpine
@@ -411,57 +501,77 @@ services:
       - ./nginx/certs:/etc/nginx/certs:ro
       - ./frontend:/usr/share/nginx/html:ro
 ```
+
 启动：
+
 ```bash
 docker compose up -d
 ```
+
 检查：
+
 ```bash
 docker compose ps
 docker logs nginx-https
 ```
+
 测试配置：
+
 ```bash
 docker compose exec nginx nginx -t
 ```
+
 查看最终生效配置：
+
 ```bash
 docker compose exec nginx nginx -T
 ```
 
 ## 九、使用 curl 观察 HTTPS
+
 直接访问：
+
 ```bash
 curl -v https://localhost:8443/
 ```
+
 通常会失败，出现类似：
+
 ![curl without -k flag](./images/curl-without-k-flag.png)
 
 原因不是 TLS 握手完全没有发生，而是 curl 无法把该证书连接到受信任根 CA。
 
 使用：
+
 ```bash
 curl -vk https://localhost:8443/
 ```
+
 其中：
+
 - -v：显示连接、TLS 和 HTTP 过程。
 - -k：跳过证书可信性和主机身份验证。
+
 成功后应看到：
+
 ![curl with -k flag success](./images/curl-with-k-flag-success.png)
 
 警告：
+
 > curl -k 只适合实验和排错，不代表证书已经可信，也不应成为生产环境的默认解决方案。
 
-
 更合理的实验方式是明确告诉 curl 信任哪张证书：
+
 ```
 curl -v \
   --cacert nginx/certs/localhost.crt \
   https://localhost:8443/
 ```
+
 因为证书 SAN 中包含 localhost，域名检查也能通过。
 
 此时通过浏览器访问就会出现如下问题：
+
 ![browser cert warning](./images/browser-cert-warning.png)
 
 ## 十、HTTP 为什么不能直接交给 HTTPS server
@@ -724,3 +834,141 @@ curl -ki https://localhost:8443/assets/not-found.js
 ```
 
 应该返回 `404`。
+
+## 十六、加入 Backend 与 upstream
+
+创建`backend/server.js`
+
+```javascript
+const http = require('http');
+
+const server = http.createServer((req, res) => {
+  const body = JSON.stringify({
+    message: 'Hello from backend',
+    url: req.url,
+    host: req.headers.host,
+    xForwardedProto: req.headers['x-forwarded-proto'],
+    xForwardedFor: req.headers['x-forwarded-for']
+  }, null, 2);
+
+  res.writeHead(200, {
+    'Content-Type': 'application/json; charset=utf-8'
+  });
+
+  res.end(body);
+});
+
+server.listen(3000, '0.0.0.0', () => {
+  console.log('Backend listening on 3000');
+});
+```
+
+修改`docker-compose.yml`
+
+```yaml
+services:
+  nginx:
+    image: nginx:1.28-alpine
+    container_name: nginx-https
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./frontend:/usr/share/nginx/html:ro
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  backend:
+    image: node:22-alpine
+    container_name: nginx-https-backend
+    working_dir: /app
+    command: ["node", "server.js"]
+    volumes:
+      - ./backend:/app:ro
+    expose:
+      - "3000"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+```
+
+在`nginx/conf.d/default.conf`对`https`请求设置反向代理
+
+```nginx
+location /api/ {
+    proxy_pass http://localhost:3000;
+}
+```
+
+## 十七、HTTPS 终止与 X-Forwarded-Proto
+
+将`nginx/conf.d/default.conf`配置修改如下：
+
+```nginx
+upstream backend_cluster {
+    server backend:3000;
+}
+
+location /api/ {
+    proxy_pass http://backend_cluster/;
+
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+链路是：
+
+```mermaid
+flowchart TD
+    A["客户端"] -->|HTTPS| B["Nginx"]
+    B -->|HTTP| C["Backend"]
+
+    style A fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style B fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style C fill:#fff3e0,stroke:#e65100,stroke-width:2px
+```
+
+TLS 在 Nginx 处终止：
+
+```text
+客户端 ↔ Nginx：HTTPS
+Nginx ↔ Backend：HTTP
+```
+
+这并不矛盾。两段连接是独立的：
+
+```text
+连接一：客户端与 Nginx
+连接二：Nginx 与 Backend
+```
+
+如果内网链路也有合规或零信任要求，可以把第二段配置成 HTTPS，但那是另一个独立问题，需要后端证书、信任验证等配置。
+
+`$scheme` 的作用
+
+客户端通过 HTTPS 访问 Nginx 时：
+
+```text
+$scheme = https
+```
+
+Nginx 转发给后端：
+
+```text
+X-Forwarded-Proto: https
+```
+
+虽然 Backend 与 Nginx 之间是 HTTP，但 Backend 可以知道：
+
+```text
+客户端原始连接使用的是 HTTPS
+```
