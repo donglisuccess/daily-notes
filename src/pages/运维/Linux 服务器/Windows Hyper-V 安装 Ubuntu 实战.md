@@ -110,7 +110,7 @@ Hypervisor 是虚拟化的核心层。
 
 你可以看到的界面如下所示：
 
-![1789277862454](image/WindowsHyper-V安装Ubuntu实战/1789277862454.png)
+![](./images/vm-1.png)
 
 查看所有虚拟机：
 
