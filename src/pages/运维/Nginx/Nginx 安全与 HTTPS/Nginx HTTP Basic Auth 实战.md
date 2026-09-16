@@ -704,3 +704,38 @@ Basic Auth 并不是完整用户认证系统。
 - 日志能够完整排障
 
 只有做到这些，Basic Auth 才不仅仅是“会写两行 Nginx 配置”，而是真正成为系统安全边界的一部分。
+
+## 拓展实战：
+> 现在有一个管理系统，没有登录页面，只有通过 Basic Auth 认证后才能访问，如何通过 Nginx 实现这个需求？
+
+### 1、创建用户密码文件
+```bash
+htpasswd -c /etc/nginx/.htpasswd admin
+```
+
+### 2、配置Nginx
+```Nginx
+server {
+  listen 80;
+
+  location /server-manage {
+    auth_basic "Server Management";
+    auth_basic_user_file /etc/nginx/.htpasswd;
+
+    alias /usr/share/nginx/html;
+    index server-manage.html;
+  }
+}
+```
+当访问/server-manage时，会触发Basic Auth认证，要求输入用户名+密码。
+
+### 3、重启Nginx
+```bash
+nginx -s reload
+```
+
+### 4、访问
+访问http://localhost/server-manage， 会弹出Basic Auth认证框，输入用户名和密码即可访问。
+
+### 5、注意事项
+- 用户密码文件`.htpasswd`需要安全保存，避免被非法获取。可以使用`htpasswd -c`命令创建新文件，如果文件已存在，可以使用`htpasswd -b`命令添加新用户。
