@@ -111,11 +111,11 @@ flowchart TD
 
 所以可以简单记：
 
-| 概念                   | 一句话理解               |
-| ---------------------- | ------------------------ |
-| CI                     | 保证代码能安全集成       |
-| Continuous Delivery    | 保证代码随时可以发布     |
-| Continuous Deployment  | 检查通过后自动上线       |
+| 概念                  | 一句话理解           |
+| --------------------- | -------------------- |
+| CI                    | 保证代码能安全集成   |
+| Continuous Delivery   | 保证代码随时可以发布 |
+| Continuous Deployment | 检查通过后自动上线   |
 
 ## 三、Jenkins 和 CI/CD 的关系
 
@@ -211,10 +211,10 @@ Build #3
 
 所以：
 
-| 概念  | 含义           |
-| ----- | -------------- |
-| Job   | 任务模板       |
-| Build | 一次执行记录   |
+| 概念  | 含义         |
+| ----- | ------------ |
+| Job   | 任务模板     |
+| Build | 一次执行记录 |
 
 一个 Job 可以执行很多次 Build。
 
@@ -426,3 +426,472 @@ env
 先搞清楚：
 
 > 谁，在什么目录，用什么环境执行。
+
+## 七、使用 Docker 安装 Jenkins
+
+本次实战使用 Docker 部署 Jenkins。
+
+首先拉镜像：
+
+```bash
+sudo docker pull jenkins/jenkins:lts-jdk21
+```
+
+这里 `jenkins/jenkins` 是 Jenkins 镜像。
+
+而 `lts-jdk21` 表示 **Jenkins LTS + JDK 21**。
+
+Jenkins 本身是 Java 应用，所以需要 Java 运行环境。
+
+### 创建 Jenkins 数据目录
+
+```bash
+mkdir -p ~/jenkins-data
+```
+
+查看：
+
+```bash
+ls -ld ~/jenkins-data
+```
+
+这个目录用于保存 Jenkins 数据。
+
+### 启动 Jenkins
+
+```bash
+sudo docker run -d \
+  --name jenkins \
+  -p 8080:8080 \
+  -p 50000:50000 \
+  -v ~/jenkins-data:/var/jenkins_home \
+  --restart unless-stopped \
+  jenkins/jenkins:lts-jdk21
+```
+
+这里最重要的是三个配置。
+
+#### 端口 8080：访问 Jenkins Web UI
+
+```text
+Ubuntu:8080
+↓
+Jenkins Container:8080
+```
+
+用于访问 Jenkins Web UI。
+
+#### 端口 50000：Controller 与 Agent 通信
+
+主要用于：
+
+```text
+Jenkins Controller ↔ Jenkins Agent
+```
+
+的通信。
+
+这一章暂时没有实际使用。
+
+#### /var/jenkins_home：Jenkins 数据目录
+
+这是 Jenkins 非常重要的数据目录。
+
+我们做了：
+
+```bash
+-v ~/jenkins-data:/var/jenkins_home
+```
+
+意味着：
+
+```text
+宿主机：~/jenkins-data
+↓ 映射到
+容器：/var/jenkins_home
+```
+
+这里保存：
+
+- Job
+- Build History
+- 用户
+- 插件
+- 配置
+- Workspace
+- Credentials
+
+所以要理解：
+
+| 部分         | 角色                 |
+| ------------ | -------------------- |
+| Container    | 运行环境             |
+| Jenkins Data | 真正需要持久化的数据 |
+
+容器可以重建，但数据不能随便删除。
+
+## 八、Jenkins 初始化
+
+第一次启动后，需要获取初始化密码：
+
+```bash
+sudo docker exec jenkins \
+  cat /var/jenkins_home/secrets/initialAdminPassword
+```
+
+然后浏览器进入 Jenkins。
+
+初始化过程中主要做了：
+
+```mermaid
+flowchart TD
+    A["输入管理员密码"] --> B["安装推荐插件"]
+    B --> C["创建管理员用户"]
+    C --> D["配置 Jenkins URL"]
+    D --> E["完成初始化"]
+
+    style A fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style E fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+```
+
+**输入管理员密码**
+
+![输入管理员密码](./images/jenkins-install-step-1.png)
+
+**安装推荐插件**
+
+![安装推荐插件](./images/jenkins-install-step-2.png)
+
+![安装推荐插件](./images/jenkins-install-step-3.png)
+
+**创建管理员用户**
+
+![创建管理员用户](./images/jenkins-install-step-4.png)
+
+**配置 Jenkins URL**
+
+![配置 Jenkins URL](./images/jenkins-install-step-5.png)
+
+配置成功：
+
+![配置成功](./images/jenkins-install-step-6.png)
+
+### Jenkins Web 用户和 Linux 用户不是一回事
+
+例如：
+
+- Jenkins 管理员用户：`dongli`
+- Ubuntu 用户：`dongli`
+
+即使名字一样，它们也是两套用户系统。
+
+更不要和 Jenkins 执行 Shell 时使用的 `jenkins` 混淆。
+
+所以这里实际有三层身份：
+
+```text
+Ubuntu 登录用户
+Jenkins Web 用户
+Jenkins Shell 执行用户
+```
+
+## 九、第一个 Freestyle Job
+
+创建 Job：
+
+- 名称：`hello-jenkins`
+- 类型：`Freestyle project`
+- 构建步骤：`Build Steps → Execute shell`
+
+第一次执行：
+
+```bash
+echo "===== Jenkins Demo ====="
+
+echo "Current User:"
+whoami
+
+echo "Current Directory:"
+pwd
+
+echo "Files:"
+ls -la
+
+echo "System:"
+uname -a
+
+echo "Date:"
+date
+```
+
+构建完成后，通过：
+
+```text
+Build History → Build #1 → Console Output
+```
+
+查看日志。
+
+实际得到：
+
+```text
+whoami → jenkins
+```
+
+以及：
+
+```text
+pwd → /var/jenkins_home/workspace/hello-jenkins
+```
+
+这两个结果非常重要，因为它们验证了：
+
+| 验证点             | 结果                                      |
+| ------------------ | ----------------------------------------- |
+| Jenkins Shell 用户 | `jenkins`                                 |
+| Job 工作目录       | `/var/jenkins_home/workspace/hello-jenkins` |
+
+即前文所说的：Jenkins Shell 用户 = `jenkins`，Job 工作目录 = Workspace。
+
+## 十、Workspace 实验
+
+为了验证 Workspace，我们修改 Job：
+
+```bash
+echo "Hello Jenkins" > hello.txt
+
+pwd
+
+ls -la
+
+cat hello.txt
+```
+
+Build 执行成功后，可以看到 `hello.txt` 真实存在于：
+
+```text
+/var/jenkins_home/workspace/hello-jenkins
+```
+
+进入容器：
+
+```bash
+sudo docker exec -it jenkins bash
+```
+
+然后：
+
+```bash
+cd /var/jenkins_home/workspace/hello-jenkins
+ls -la
+cat hello.txt
+```
+
+得到：
+
+```text
+Hello Jenkins
+```
+
+这真正证明了完整链路：
+
+```mermaid
+flowchart TD
+    A["Job"] --> B["Build"]
+    B --> C["Workspace"]
+    C --> D["Shell"]
+    D --> E["生成文件"]
+
+    style A fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style E fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+```
+
+## 十一、Jenkins 如何判断失败
+
+我们做了两个失败实验。
+
+### 实验一：主动返回非 0
+
+```bash
+echo "start"
+
+exit 1
+
+echo "end"
+```
+
+结果：
+
+```text
+Finished: FAILURE
+```
+
+而 `echo "end"` 没有执行。
+
+原因是：
+
+```text
+exit 0    → 成功
+exit 非 0 → 失败
+```
+
+Jenkins 会根据 Shell 的执行结果判断这次 Build 是否失败。
+
+### 实验二：执行不存在的命令
+
+```bash
+echo "start"
+
+hello-jenkins-command
+
+echo "end"
+```
+
+Console Output 出现：
+
+```text
+hello-jenkins-command: not found
+```
+
+最终：
+
+```text
+Finished: FAILURE
+```
+
+这时真正的根因是 `command not found`，而不是 `Finished: FAILURE`。
+
+因为 `Finished: FAILURE` 只是最终结果。
+
+## 十二、Jenkins 的日志怎么看？
+
+这一章接触到了两种日志。
+
+### Jenkins 服务日志
+
+```bash
+sudo docker logs jenkins
+```
+
+主要看：
+
+- Jenkins 服务自身
+- 启动
+- 插件
+- 系统错误
+
+### Build 日志
+
+Jenkins Web 中的：
+
+```text
+Console Output
+```
+
+主要看：
+
+- Job 执行过程
+- Shell 输出
+- 测试日志
+- 构建错误
+
+所以以后排错不能混：
+
+| 场景               | 看哪里                 |
+| ------------------ | ---------------------- |
+| Jenkins 服务起不来 | `docker logs jenkins`  |
+| 某次 Build 失败    | `Console Output`       |
+
+## 十三、验证数据持久化
+
+最后我们做了一个非常重要的实验。
+
+删除 Jenkins 容器：
+
+```bash
+sudo docker rm -f jenkins
+```
+
+此时 `Container` 已经不存在。
+
+但执行：
+
+```bash
+ls -la ~/jenkins-data
+```
+
+发现 Jenkins 数据仍然存在。
+
+然后重新创建容器：
+
+```bash
+sudo docker run -d \
+  --name jenkins \
+  -p 8080:8080 \
+  -p 50000:50000 \
+  -v ~/jenkins-data:/var/jenkins_home \
+  --restart unless-stopped \
+  jenkins/jenkins:lts-jdk21
+```
+
+重新进入 Jenkins 后：
+
+```text
+hello-jenkins Job
+Build #1
+Build #2
+Build #3
+Build #4
+```
+
+仍然存在。
+
+这证明：
+
+```text
+删除 Container ≠ 删除 Jenkins 数据
+```
+
+因为真正的数据保存在 `~/jenkins-data`。
+
+所以：
+
+| 部分              | 结论             |
+| ----------------- | ---------------- |
+| Jenkins Container | 可以重新创建     |
+| Jenkins Data      | 必须持久化保存   |
+
+## 十四、这一章最重要的排错思路
+
+这一章不只是学 Jenkins，还练习了一种非常重要的排错方法：
+
+> 不猜，先确认当前处于哪一层。
+
+例如 Build 一直停在 Queue：
+
+```text
+先查 Agent → 再查 Executor
+```
+
+而不是先查 Workspace。
+
+如果 Build 已经开始执行，按顺序确认：
+
+1. 先看 Console Output
+2. 看第一条真实错误
+3. 确认 `whoami`
+4. 确认 `pwd`
+5. 确认 `PATH`
+6. 确认权限
+
+例如 `package.json not found`，合理排查顺序：
+
+1. `pwd`
+2. `ls`
+3. 确认 Workspace
+4. 确认代码是否存在
+5. 再判断 Git 是否拉取失败
+
+而不是直接认定 `npm 坏了`。
+
+这种分层排错思路，比记住某个 Jenkins 命令更重要。
