@@ -59,6 +59,10 @@ flowchart TD
 
 这叫 **TLS Termination** —— TLS 在 Nginx 这里终止。
 
+那「浏览器 → Nginx」之间的 HTTPS 连接究竟是怎么建立的？核心就是 TLS 握手：非对称加密负责身份验证与密钥交换，对称加密负责后续高速通信。
+
+![HTTPS 连接是如何建立的：TLS 握手与非对称/对称加密协作](./images/https-tls-handshake.png)
+
 所以你的前端容器继续监听 `127.0.0.1:8082` 完全没问题。
 
 整个 HTTPS 能工作的前提可以理解成一条链路：
