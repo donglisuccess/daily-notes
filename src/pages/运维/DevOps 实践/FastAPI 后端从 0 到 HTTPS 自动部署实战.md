@@ -20,6 +20,10 @@ flowchart TD
 - `GET https://api.dongliwwj.top/api/hello`
 - `POST https://api.dongliwwj.top/api/echo`
 
+整个流程的全貌如下图所示：
+
+![FastAPI 后端自动部署全流程：从本地开发到 HTTPS 上线](./image/fastapi-deploy-flow.png)
+
 ## 一、先看最终架构
 
 最终后端链路是：
