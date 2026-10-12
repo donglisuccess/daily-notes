@@ -13,8 +13,10 @@ const markdownModules = import.meta.glob<string>('../pages/**/*.md', {
   import: 'default'
 });
 
+// 文件名或目录名以 `_` 开头的笔记为隐藏状态（逻辑删除），不进入目录树与路由
 const noteDefinitions: NoteDefinition[] = Object.entries(markdownModules)
   .map(([filePath, loader]) => createNoteDefinition(filePath, loader as MarkdownLoader))
+  .filter((note) => !note.segments.some((segment) => segment.startsWith('_')))
   .sort((a, b) => a.path.localeCompare(b.path, 'zh-CN'));
 
 const noteFiles: NoteFile[] = noteDefinitions.map(({ loader, ...note }) => note);
