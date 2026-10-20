@@ -1,6 +1,7 @@
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router';
 
 export const NOTE_ROUTE_PREFIX = '/notes';
+export const RECORD_ROUTE_PREFIX = '/record';
 
 const EmptyView = { template: '<div />' };
 
@@ -13,6 +14,11 @@ const routes: RouteRecordRaw[] = [
   {
     path: `${NOTE_ROUTE_PREFIX}/:notePath(.*)*`,
     name: 'note',
+    component: EmptyView
+  },
+  {
+    path: `${RECORD_ROUTE_PREFIX}/:recordPath(.*)*`,
+    name: 'record',
     component: EmptyView
   }
 ];

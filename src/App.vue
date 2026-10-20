@@ -6,10 +6,12 @@ import { useRoute, useRouter } from 'vue-router';
 
 import AppHeader from './components/AppHeader.vue';
 import ContentViewer from './components/ContentViewer.vue';
+import RecordView from './components/RecordView.vue';
 import SidebarTree from './components/SidebarTree.vue';
 import TocSidebar from './components/TocSidebar.vue';
+import IconFolderLarge from './components/icons/IconFolderLarge.vue';
 import { useNotes } from './composables/useNotes';
-import { NOTE_ROUTE_PREFIX } from './router';
+import { NOTE_ROUTE_PREFIX, RECORD_ROUTE_PREFIX } from './router';
 import type { LoadedNote, OutlineHeading } from './types/note';
 
 type ResizeTarget = 'sidebar' | 'toc';
@@ -36,6 +38,9 @@ const sidebarWidth = ref(DEFAULT_SIDEBAR_WIDTH);
 const tocWidth = ref(DEFAULT_TOC_WIDTH);
 const activeResizeTarget = ref<ResizeTarget | null>(null);
 const currentPath = computed(() => (route.path.startsWith(NOTE_ROUTE_PREFIX) ? route.path : ''));
+const isRecordRoute = computed(
+  () => route.path === RECORD_ROUTE_PREFIX || route.path.startsWith(`${RECORD_ROUTE_PREFIX}/`)
+);
 let loadToken = 0;
 let activePointerId: number | null = null;
 const isImmersiveActive = computed(() => Boolean(currentNote.value && isImmersiveReading.value));
@@ -222,6 +227,11 @@ const handleNavigateHome = () => {
   handleCloseMobileNav();
 };
 
+const handleOpenRecord = () => {
+  router.push(RECORD_ROUTE_PREFIX);
+  handleCloseMobileNav();
+};
+
 const handleToggleImmersive = () => {
   if (!currentNote.value) {
     return;
@@ -264,6 +274,17 @@ const handleExitImmersive = () => {
             @select="handleSelectNote"
           />
         </div>
+        <div class="sidebar-footer">
+          <button
+            type="button"
+            class="sidebar-record-entry"
+            :class="{ active: isRecordRoute }"
+            @click="handleOpenRecord"
+          >
+            <IconFolderLarge class="sidebar-record-entry__icon" />
+            <span>技术碎碎念</span>
+          </button>
+        </div>
       </section>
 
       <div
@@ -282,7 +303,10 @@ const handleExitImmersive = () => {
         @dblclick="handleResizerReset('sidebar')"
       />
 
+      <RecordView v-if="isRecordRoute" />
+
       <ContentViewer
+        v-else
         :note="currentNote"
         :navigation="noteNavigation"
         :immersive="isImmersiveActive"
@@ -330,6 +354,17 @@ const handleExitImmersive = () => {
         :current-path="currentPath"
         @select="handleSelectNote"
       />
+      <div class="sidebar-footer sidebar-footer--drawer">
+        <button
+          type="button"
+          class="sidebar-record-entry"
+          :class="{ active: isRecordRoute }"
+          @click="handleOpenRecord"
+        >
+          <IconFolderLarge class="sidebar-record-entry__icon" />
+          <span>技术碎碎念</span>
+        </button>
+      </div>
     </ElDrawer>
   </div>
 </template>
