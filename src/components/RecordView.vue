@@ -220,10 +220,8 @@ const handleNavigateCrumb = (routePath: string) => {
 .record-item__label {
   max-width: 100%;
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  word-break: break-all;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.4;
