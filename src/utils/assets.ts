@@ -1,10 +1,16 @@
-// 支持图片与常见视频格式，便于解析 markdown 中的相对资源路径
-const assetModules = import.meta.glob<string>('../pages/**/*.{png,jpg,jpeg,gif,svg,webp,avif,bmp,ico,mp4,webm,ogg,mov,m4v}', {
-  eager: true,
-  import: 'default'
-});
+// 支持图片与常见视频格式，便于解析 markdown 中的相对资源路径（pages 与 record 两个数据源）
+const assetModules = {
+  ...import.meta.glob<string>('../pages/**/*.{png,jpg,jpeg,gif,svg,webp,avif,bmp,ico,mp4,webm,ogg,mov,m4v}', {
+    eager: true,
+    import: 'default'
+  }),
+  ...import.meta.glob<string>('../record/**/*.{png,jpg,jpeg,gif,svg,webp,avif,bmp,ico,mp4,webm,ogg,mov,m4v}', {
+    eager: true,
+    import: 'default'
+  })
+};
 
-const ASSET_PREFIX = '../pages/';
+const ASSET_PREFIX = /^\.\.\/(pages|record)\//;
 const assetMap = new Map<string, string>();
 
 Object.entries(assetModules).forEach(([key, value]) => {
