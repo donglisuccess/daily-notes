@@ -32,6 +32,9 @@ export interface TreeNode {
   type: NoteNodeType;
   path?: string;
   children?: TreeNode[];
+  /** 文件节点附加元数据（仅 record 视图使用）：修改时间戳（ms）与文件大小（字节） */
+  mtime?: number;
+  size?: number;
 }
 
 export interface OutlineHeading {

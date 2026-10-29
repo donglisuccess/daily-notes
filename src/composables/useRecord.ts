@@ -1,6 +1,7 @@
 import type { LoadedNote, NoteFile, TreeNode } from '@/types/note';
 import { RECORD_ROUTE_PREFIX } from '@/router';
 import { buildTree } from '@/utils/tree';
+import recordFileMeta from 'virtual:record-meta';
 
 type MarkdownLoader = () => Promise<{ default: string } | string>;
 
@@ -21,6 +22,21 @@ const recordDefinitions: RecordDefinition[] = Object.entries(markdownModules)
   .sort((a, b) => a.path.localeCompare(b.path, 'zh-CN'));
 
 const recordTree: TreeNode[] = buildTree(recordDefinitions);
+
+// 将构建期采集的文件元数据（修改时间/大小）挂到文件节点，供 record 视图列表展示
+const attachRecordMeta = (nodes: TreeNode[]): void => {
+  nodes.forEach((node) => {
+    const meta = node.type === 'file' ? recordFileMeta[node.id] : undefined;
+    if (meta) {
+      node.mtime = meta.mtime;
+      node.size = meta.size;
+    }
+    if (node.children) {
+      attachRecordMeta(node.children);
+    }
+  });
+};
+attachRecordMeta(recordTree);
 const routeMap = new Map<string, RecordDefinition>(
   recordDefinitions.map((record) => [record.routePath, record])
 );

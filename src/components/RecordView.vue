@@ -36,6 +36,22 @@ const isFileRoute = computed(() => {
 
 const childNodes = computed(() => (isFileRoute.value ? [] : getChildNodes(pathSegments.value)));
 
+// 文件夹保持图标平铺样式，文件以详细信息列表展示
+const folderNodes = computed(() => childNodes.value.filter((node) => node.type === 'folder'));
+const fileNodes = computed(() => childNodes.value.filter((node) => node.type === 'file'));
+
+const formatDateTime = (value?: number): string => {
+  if (!value) return '—';
+  const date = new Date(value);
+  const pad = (num: number) => String(num).padStart(2, '0');
+  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+const formatSize = (value?: number): string => {
+  if (typeof value !== 'number') return '—';
+  return `${Math.max(1, Math.ceil(value / 1024))} KB`;
+};
+
 const breadcrumbs = computed(() =>
   pathSegments.value.map((segment, idx) => ({
     label: segment,
@@ -106,22 +122,50 @@ const handleNavigateCrumb = (routePath: string) => {
       </template>
     </nav>
 
-    <div v-if="childNodes.length" class="record-grid">
+    <div v-if="folderNodes.length" class="record-grid">
       <button
-        v-for="node in childNodes"
+        v-for="node in folderNodes"
         :key="node.id"
         type="button"
-        class="record-item"
-        :class="[`type-${node.type}`]"
+        class="record-item type-folder"
         @click="handleOpenNode(node)"
       >
-        <IconFolderLarge v-if="node.type === 'folder'" class="record-item__icon" />
-        <IconDocumentLarge v-else class="record-item__icon" />
+        <IconFolderLarge class="record-item__icon" />
         <span class="record-item__label">{{ node.label }}</span>
       </button>
     </div>
 
-    <p v-else class="record-empty">暂无内容</p>
+    <div v-if="fileNodes.length" class="record-list">
+      <div class="record-list__header" aria-hidden="true">
+        <span class="record-list__name">名称</span>
+        <span class="record-list__meta-group">
+          <span>修改日期</span>
+          <span class="record-list__type">类型</span>
+          <span class="record-list__size">大小</span>
+        </span>
+      </div>
+      <button
+        v-for="node in fileNodes"
+        :key="node.id"
+        type="button"
+        class="record-list__row"
+        @click="handleOpenNode(node)"
+      >
+        <span class="record-list__name">
+          <span class="record-list__badge">
+            <IconDocumentLarge class="record-list__icon" />
+          </span>
+          <span class="record-list__label">{{ node.label }}</span>
+        </span>
+        <span class="record-list__meta-group">
+          <span class="record-list__meta">{{ formatDateTime(node.mtime) }}</span>
+          <span class="record-list__meta record-list__type record-list__tag">MD</span>
+          <span class="record-list__meta record-list__size">{{ formatSize(node.size) }}</span>
+        </span>
+      </button>
+    </div>
+
+    <p v-if="!childNodes.length" class="record-empty">暂无内容</p>
   </section>
 </template>
 
@@ -213,10 +257,6 @@ const handleNavigateCrumb = (routePath: string) => {
   color: #4aa7e8;
 }
 
-.record-item.type-file .record-item__icon {
-  color: var(--text-muted);
-}
-
 .record-item__label {
   max-width: 100%;
   overflow: hidden;
@@ -232,6 +272,130 @@ const handleNavigateCrumb = (routePath: string) => {
   color: var(--text-primary);
 }
 
+.record-list {
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: var(--panel-bg);
+  font-size: 13px;
+}
+
+.record-grid + .record-list {
+  margin-top: 16px;
+}
+
+.record-list__header,
+.record-list__row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 14px;
+}
+
+.record-list__header {
+  padding-top: 9px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--panel-border);
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.record-list__row {
+  /* button 的外层 display 无法块级化，需显式宽度才能撑满整行，保证右侧列对齐 */
+  width: 100%;
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  color: var(--text-secondary);
+  transition:
+    background var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+.record-list__row:hover {
+  background: var(--panel-muted);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.record-list__row:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.record-list__name {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.record-list__meta-group {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 150px 44px 56px;
+  gap: 14px;
+  align-items: center;
+}
+
+.record-list__badge {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: var(--accent-soft);
+}
+
+.record-list__badge .record-list__icon {
+  width: 15px;
+  height: 15px;
+  color: #4aa7e8;
+}
+
+.record-list__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  transition: color var(--transition-base);
+}
+
+.record-list__row:hover .record-list__label {
+  color: var(--text-primary);
+}
+
+.record-list__meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.record-list__tag {
+  justify-self: start;
+  padding: 1px 7px;
+  border: 1px solid var(--panel-border);
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  font-variant-numeric: normal;
+}
+
+.record-list__size {
+  text-align: right;
+}
+
 .record-empty {
   margin: auto;
   color: var(--text-muted);
@@ -242,6 +406,17 @@ const handleNavigateCrumb = (routePath: string) => {
   .record-explorer {
     height: auto;
     min-height: calc(100vh - var(--header-height));
+  }
+}
+
+@media (max-width: 600px) {
+  .record-list__meta-group {
+    grid-template-columns: 118px 52px;
+    gap: 10px;
+  }
+
+  .record-list__type {
+    display: none;
   }
 }
 </style>
